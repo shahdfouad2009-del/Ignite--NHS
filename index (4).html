@@ -1,0 +1,1983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ignite NHS</title>
+<meta name="description" content="Ignite NHS — the central hub for running your National Honor Society chapter." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='23' fill='%231e3a8a'/%3E%3Ccircle cx='24' cy='24' r='23' stroke='%23fbbf24' stroke-width='1.5'/%3E%3C/svg%3E" />
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Firebase compat SDK (global "firebase" object) — more reliable than ESM imports for a no-build page like this. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; padding: 0; background: #f8fafc; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Babel Standalone transpiles the JSX below in the browser — no build step needed. -->
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<script type="text/babel" data-type="module" data-presets="react">
+/* ==================================================================
+   IGNITE NHS — application code
+   ================================================================== */
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import ReactDOM from "react-dom/client";
+import {
+  Home, Megaphone, Users, CalendarCheck, AlertTriangle, CalendarDays,
+  DollarSign, FileText, Image as ImageIcon, Shield, LogOut, Plus, Search,
+  Trash2, Pencil, Check, X, Menu, Flag, Clock, MapPin, Upload, ChevronLeft,
+  ChevronRight, TrendingUp, TrendingDown, UserCheck, UserX, Award, Flame,
+  ClipboardList, Bell, Loader2, ChevronDown, Download, CalendarPlus
+} from "lucide-react";
+// Firebase is loaded as global "firebase" via compat CDN scripts in index.html (see <head>) —
+// this avoids a known ESM-import registration bug with Firebase's modular SDK on some CDNs.
+
+/* ============================== FIREBASE SETUP ==============================
+   Paste the config object from your Firebase project (Project settings > your
+   web app) below. See the setup guide that came with this file for full steps. */
+const firebaseConfig = {
+  apiKey: "AIzaSyA-QBDmoFeHFIPdmbrJWmoEqq3LrwMui64",
+  authDomain: "ignite-nhs.firebaseapp.com",
+  projectId: "ignite-nhs",
+  storageBucket: "ignite-nhs.firebasestorage.app",
+  messagingSenderId: "684337950748",
+  appId: "1:684337950748:web:029d0c3361dbfc30c96fd9",
+};
+let firebaseApp = null;
+let firestoreDb = null;
+let firebaseInitError = null;
+try {
+  firebaseApp = firebase.initializeApp(firebaseConfig);
+  firestoreDb = firebase.firestore();
+} catch (e) {
+  console.error("Firebase failed to initialize", e);
+  firebaseInitError = e;
+}
+
+/* ============================== CONSTANTS ============================== */
+
+const ROLES = [
+  "President",
+  "Vice President",
+  "Head of Event Planning",
+  "Event Planner",
+  "Head of Marketing",
+  "Marketing",
+  "Head of Finance",
+  "Finance",
+  "Head of Secretary",
+  "Secretary",
+  "General Member",
+];
+
+const DEPARTMENTS = {
+  "Head of Event Planning": "Event Planning",
+  "Event Planner": "Event Planning",
+  "Head of Marketing": "Marketing",
+  "Marketing": "Marketing",
+  "Head of Finance": "Finance",
+  "Finance": "Finance",
+  "Head of Secretary": "Secretary",
+  "Secretary": "Secretary",
+  "President": "Executive Board",
+  "Vice President": "Executive Board",
+  "General Member": "General",
+};
+
+const DEPT_HEADS = ["Head of Event Planning", "Head of Marketing", "Head of Finance", "Head of Secretary"];
+const DEPT_LABELS = { "Head of Event Planning": "Event Planning", "Head of Marketing": "Marketing", "Head of Finance": "Finance", "Head of Secretary": "Secretary" };
+
+const ADMIN_EMAIL = "shahd.fouad2009@gmail.com";
+
+const COLORS_BY_DEPT = {
+  "Event Planning": "bg-blue-100 text-blue-800 border-blue-200",
+  "Marketing": "bg-amber-100 text-amber-800 border-amber-200",
+  "Finance": "bg-emerald-100 text-emerald-800 border-emerald-200",
+  "Secretary": "bg-indigo-100 text-indigo-800 border-indigo-200",
+  "Executive Board": "bg-slate-200 text-slate-800 border-slate-300",
+};
+
+/* ============================== HELPERS ============================== */
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const fmtDate = (d) => {
+  if (!d) return "";
+  const dt = new Date(d + "T00:00:00");
+  return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+};
+const fmtDateLong = (d) => {
+  if (!d) return "";
+  const dt = new Date(d + "T00:00:00");
+  return dt.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+};
+
+function isAdminMember(m) {
+  return !!(m && (m.isAdmin || m.role === "President"));
+}
+function canPostAnnouncementFor(m) {
+  // returns department string the member can post for, or 'ANY' for admin
+  if (!m) return null;
+  if (isAdminMember(m)) return "ANY";
+  if (DEPT_HEADS.includes(m.role)) return DEPT_LABELS[m.role];
+  return null;
+}
+function canManage(m, section) {
+  if (!m) return false;
+  if (isAdminMember(m)) return true;
+  if (section === "events") return m.role === "Head of Event Planning";
+  if (section === "finance") return m.role === "Head of Finance";
+  if (section === "secretary") return m.role === "Head of Secretary";
+  if (section === "marketing") return false; // Head of Marketing has no edit access — admin only
+  if (section === "attendance") return m.role === "Head of Secretary";
+  if (section === "warnings") return false; // admin only
+  if (section === "members") return false; // admin only
+  if (section === "calendar") return m.role === "Head of Event Planning";
+  return false;
+}
+function canView(m, section) {
+  if (!m) return false;
+  if (isAdminMember(m) || canManage(m, section)) return true;
+  if (section === "finance") return m.role === "Finance";
+  if (section === "secretary") return m.role === "Secretary";
+  if (section === "marketing") return m.role === "Marketing" || m.role === "Head of Marketing";
+  return true; // dashboard, announcements, events, calendar, my profile: everyone
+}
+
+function attendanceStatsFor(memberId, attendance) {
+  const recs = attendance.filter((a) => a.memberId === memberId);
+  const present = recs.filter((a) => a.status === "present" || a.status === "excused").length;
+  const total = recs.length;
+  const pct = total === 0 ? null : Math.round((present / total) * 100);
+  return { total, present, pct };
+}
+function isFlagged(memberId, attendance, warnings) {
+  const { pct, total } = attendanceStatsFor(memberId, attendance);
+  const wCount = warnings.filter((w) => w.memberId === memberId).length;
+  const reasons = [];
+  if (total >= 2 && pct !== null && pct < 80) reasons.push(`Attendance ${pct}%`);
+  if (wCount >= 2) reasons.push(`${wCount} warnings`);
+  return reasons;
+}
+
+/* ============================== STORAGE (Firebase) ============================== */
+// Data lives in Firestore so every visitor to the site shares the same chapter data.
+// Each key below is stored as its own document (collection "ignite_nhs"), keeping every
+// document safely under Firestore's 1MB-per-document limit even with photos attached.
+
+const FS_COLLECTION = "ignite_nhs";
+const FS_KEYS = ["members", "announcements", "events", "attendance", "warnings", "finance", "minutes", "campaigns"];
+const SESSION_KEY = "ignite_nhs_session_member_id";
+
+function defaultMembers() {
+  return [
+    {
+      id: "admin-seed-1",
+      name: "Shahd Fouad",
+      email: ADMIN_EMAIL,
+      role: "President",
+      isAdmin: true,
+      committee: "Executive Board",
+      code: "",
+      joinDate: todayStr(),
+      status: "active",
+    },
+  ];
+}
+
+async function loadDB() {
+  const result = {};
+  await Promise.all(
+    FS_KEYS.map(async (key) => {
+      try {
+        const snap = await firestoreDb.collection(FS_COLLECTION).doc(key).get();
+        result[key] = snap.exists && Array.isArray(snap.data().items) ? snap.data().items : [];
+      } catch (e) {
+        console.error(`Failed to load ${key}`, e);
+        result[key] = [];
+      }
+    })
+  );
+  if (result.members.length === 0) {
+    result.members = defaultMembers();
+    try {
+      await firestoreDb.collection(FS_COLLECTION).doc("members").set({ items: result.members });
+    } catch (e) {
+      console.error("Failed to seed admin member", e);
+    }
+  }
+  return result;
+}
+
+async function saveDB(db) {
+  try {
+    await Promise.all(
+      FS_KEYS.map((key) => firestoreDb.collection(FS_COLLECTION).doc(key).set({ items: db[key] || [] }))
+    );
+    return true;
+  } catch (e) {
+    console.error("save failed", e);
+    return false;
+  }
+}
+
+// Session (which member is logged in on this device) is just local to the browser.
+async function loadSession() {
+  try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; }
+}
+async function saveSession(memberId) {
+  try { localStorage.setItem(SESSION_KEY, memberId || ""); } catch (e) {}
+}
+
+/* ============================== SMALL UI PRIMITIVES ============================== */
+
+function NHSMark({ className = "w-9 h-9" }) {
+  // Stylized torch-and-laurel mark (original artwork, not the official trademarked NHS logo).
+  return (
+    <svg viewBox="0 0 48 48" className={className} fill="none">
+      <circle cx="24" cy="24" r="23" fill="#1e3a8a" />
+      <circle cx="24" cy="24" r="23" stroke="#fbbf24" strokeWidth="1.5" />
+      <path d="M24 10c-1.8 2-2.6 4-2.6 6.2 0 2.6 1.6 3.6 1.6 5.6 0 1.4-.8 2.2-1.8 3 1 .6 1.8 1.6 1.8 3 0 2-2 2.8-2 4.8h6c0-2-2-2.8-2-4.8 0-1.4.8-2.4 1.8-3-1-.8-1.8-1.6-1.8-3 0-2 1.6-3 1.6-5.6 0-2.2-.8-4.2-2.6-6.2z" fill="#fbbf24" />
+      <rect x="21.5" y="30.5" width="5" height="8" rx="1" fill="#fbbf24" />
+      <path d="M12 40c3-3 7-4.5 12-4.5s9 1.5 12 4.5" stroke="#fbbf24" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+    </svg>
+  );
+}
+
+function Card({ children, className = "" }) {
+  return <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm ${className}`}>{children}</div>;
+}
+
+function Badge({ children, className = "" }) {
+  return <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${className}`}>{children}</span>;
+}
+
+function Btn({ children, onClick, variant = "primary", className = "", type = "button", disabled }) {
+  const base = "inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
+  const styles = {
+    primary: "bg-blue-800 text-white hover:bg-blue-900 shadow-sm",
+    secondary: "bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200",
+    ghost: "bg-transparent text-slate-600 hover:bg-slate-100",
+    danger: "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200",
+    gold: "bg-amber-500 text-white hover:bg-amber-600 shadow-sm",
+  };
+  return (
+    <button type={type} disabled={disabled} onClick={onClick} className={`${base} ${styles[variant]} ${className}`}>
+      {children}
+    </button>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{label}</span>
+      {children}
+    </label>
+  );
+}
+const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+
+function Modal({ title, onClose, children, wide }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4" onClick={onClose}>
+      <div
+        className={`bg-white rounded-t-2xl sm:rounded-2xl w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} max-h-[92vh] overflow-y-auto shadow-xl`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <h3 className="font-serif text-lg font-bold text-slate-900">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressBar({ pct, colorClass = "bg-blue-700" }) {
+  const p = pct === null || pct === undefined ? 0 : pct;
+  return (
+    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+      <div className={`h-full ${colorClass} rounded-full transition-all`} style={{ width: `${Math.min(100, p)}%` }} />
+    </div>
+  );
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+/* ============================== APP ============================== */
+
+export default function App() {
+  const [db, setDb] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState(null);
+  const [tab, setTab] = useState("dashboard");
+  const [navOpen, setNavOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (firebaseInitError) { setLoading(false); return; }
+    (async () => {
+      const [database, sessionId] = await Promise.all([loadDB(), loadSession()]);
+      setDb(database);
+      if (sessionId) {
+        const found = database.members.find((m) => m.id === sessionId);
+        if (found) setMe(found);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const persist = useCallback(async (nextDb) => {
+    setDb(nextDb);
+    setSaving(true);
+    await saveDB(nextDb);
+    setSaving(false);
+  }, []);
+
+  const handleLogin = (member) => {
+    setMe(member);
+    saveSession(member.id);
+    setTab("dashboard");
+  };
+  const handleLogout = () => {
+    setMe(null);
+    saveSession("");
+  };
+
+  if (firebaseInitError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="max-w-md text-center">
+          <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h1 className="font-serif text-xl font-bold text-slate-900">Couldn't connect to the database</h1>
+          <p className="text-sm text-slate-500 mt-2">
+            The Firebase configuration at the top of this file looks incomplete or incorrect. Double-check the
+            <code className="mx-1 px-1.5 py-0.5 bg-slate-100 rounded text-xs">firebaseConfig</code>
+            values match your Firebase project's web app settings, then reload this page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Keep `me` synced if db changes (e.g. role updated)
+  useEffect(() => {
+    if (db && me) {
+      const fresh = db.members.find((m) => m.id === me.id);
+      if (fresh && JSON.stringify(fresh) !== JSON.stringify(me)) setMe(fresh);
+      if (!fresh) handleLogout();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-3 text-blue-800">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <p className="text-sm font-medium">Loading Ignite NHS…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!me) {
+    return <LoginScreen db={db} onLogin={handleLogin} persist={persist} />;
+  }
+
+  const NAV = [
+    { key: "dashboard", label: "Dashboard", icon: Home, show: true },
+    { key: "calendar", label: "Calendar", icon: CalendarDays, show: true },
+    { key: "announcements", label: "Announcements", icon: Megaphone, show: true },
+    { key: "events", label: "Events", icon: ClipboardList, show: true },
+    { key: "members", label: "Members", icon: Users, show: canView(me, "members") },
+    { key: "attendance", label: "Attendance", icon: CalendarCheck, show: true },
+    { key: "warnings", label: "Warnings", icon: AlertTriangle, show: true },
+    { key: "finance", label: "Finance", icon: DollarSign, show: canView(me, "finance") },
+    { key: "secretary", label: "Secretary", icon: FileText, show: canView(me, "secretary") },
+    { key: "marketing", label: "Marketing", icon: ImageIcon, show: canView(me, "marketing") },
+    { key: "admin", label: "Admin Panel", icon: Shield, show: isAdminMember(me) },
+  ].filter((n) => n.show);
+
+  const viewProps = { db, persist, me, setTab };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+      <style>{`
+        .font-serif { font-family: Georgia, 'Times New Roman', serif; }
+        * { -webkit-tap-highlight-color: transparent; }
+      `}</style>
+
+      {/* Top bar */}
+      <header className="sticky top-0 z-30 bg-blue-900 text-white shadow-md">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button className="lg:hidden p-1.5 -ml-1 rounded-lg hover:bg-blue-800" onClick={() => setNavOpen(true)}>
+              <Menu className="w-6 h-6" />
+            </button>
+            <NHSMark className="w-8 h-8 shrink-0" />
+            <div className="leading-tight">
+              <p className="font-serif font-bold text-base sm:text-lg tracking-wide">Ignite NHS</p>
+              <p className="text-[11px] text-blue-200 hidden sm:block">National Honor Society Leadership Console</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {saving && <Loader2 className="w-4 h-4 animate-spin text-blue-300" />}
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-semibold">{me.name}</p>
+              <p className="text-[11px] text-blue-200">{me.role}{isAdminMember(me) && me.role !== "President" ? " · Admin" : ""}</p>
+            </div>
+            <button onClick={handleLogout} className="p-2 rounded-lg hover:bg-blue-800" title="Log out">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex">
+        {/* Sidebar - desktop */}
+        <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-slate-200 bg-white min-h-[calc(100vh-60px)] sticky top-[60px] self-start">
+          <nav className="p-3 space-y-1">
+            {NAV.map((n) => (
+              <button
+                key={n.key}
+                onClick={() => setTab(n.key)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                  tab === n.key ? "bg-blue-800 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <n.icon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
+                {n.label}
+              </button>
+            ))}
+          </nav>
+          <div className="mt-auto p-4">
+            <button onClick={() => setTab("profile")} className="w-full text-left flex items-center gap-3 rounded-xl border border-slate-200 p-3 hover:bg-slate-50">
+              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm">
+                {me.name.split(" ").map((s) => s[0]).slice(0, 2).join("")}
+              </div>
+              <div className="leading-tight">
+                <p className="text-sm font-semibold">My Profile</p>
+                <p className="text-xs text-slate-500">View my records</p>
+              </div>
+            </button>
+          </div>
+        </aside>
+
+        {/* Sidebar - mobile drawer */}
+        {navOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <div className="absolute inset-0 bg-slate-900/50" onClick={() => setNavOpen(false)} />
+            <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl p-3 overflow-y-auto">
+              <div className="flex items-center justify-between px-2 py-3">
+                <div className="flex items-center gap-2">
+                  <NHSMark className="w-7 h-7" />
+                  <span className="font-serif font-bold text-blue-900">Ignite NHS</span>
+                </div>
+                <button onClick={() => setNavOpen(false)} className="p-1.5 rounded-full hover:bg-slate-100">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <nav className="space-y-1 mt-1">
+                {NAV.map((n) => (
+                  <button
+                    key={n.key}
+                    onClick={() => { setTab(n.key); setNavOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                      tab === n.key ? "bg-blue-800 text-white" : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <n.icon className="w-[18px] h-[18px]" />
+                    {n.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setTab("profile"); setNavOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                    tab === "profile" ? "bg-blue-800 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <UserCheck className="w-[18px] h-[18px]" />
+                  My Profile
+                </button>
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Main content */}
+        <main className="flex-1 min-w-0 p-4 sm:p-6 pb-16">
+          {tab === "dashboard" && <Dashboard {...viewProps} />}
+          {tab === "calendar" && <CalendarView {...viewProps} />}
+          {tab === "announcements" && <AnnouncementsView {...viewProps} />}
+          {tab === "events" && <EventsView {...viewProps} />}
+          {tab === "members" && canView(me, "members") && <MembersView {...viewProps} />}
+          {tab === "attendance" && <AttendanceView {...viewProps} />}
+          {tab === "warnings" && <WarningsView {...viewProps} />}
+          {tab === "finance" && canView(me, "finance") && <FinanceView {...viewProps} />}
+          {tab === "secretary" && canView(me, "secretary") && <SecretaryView {...viewProps} />}
+          {tab === "marketing" && canView(me, "marketing") && <MarketingView {...viewProps} />}
+          {tab === "admin" && isAdminMember(me) && <AdminPanel {...viewProps} />}
+          {tab === "profile" && <ProfileView {...viewProps} />}
+        </main>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 flex justify-around py-1.5 shadow-[0_-2px_8px_rgba(0,0,0,0.05)]">
+        {NAV.slice(0, 5).map((n) => (
+          <button key={n.key} onClick={() => setTab(n.key)} className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg ${tab === n.key ? "text-blue-800" : "text-slate-400"}`}>
+            <n.icon className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{n.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+/* ============================== LOGIN ============================== */
+
+function LoginScreen({ db, onLogin, persist }) {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [stage, setStage] = useState("email"); // email -> code (if needed)
+  const [error, setError] = useState("");
+  const [matched, setMatched] = useState(null);
+
+  const submitEmail = (e) => {
+    e.preventDefault();
+    setError("");
+    const found = db.members.find((m) => m.email.toLowerCase().trim() === email.toLowerCase().trim());
+    if (!found) {
+      setError("No member found with that email. Ask your chapter admin to add you.");
+      return;
+    }
+    if (found.status === "inactive") {
+      setError("This account is inactive. Contact your chapter admin.");
+      return;
+    }
+    if (found.code) {
+      setMatched(found);
+      setStage("code");
+    } else {
+      onLogin(found);
+    }
+  };
+  const submitCode = (e) => {
+    e.preventDefault();
+    if (code.trim() === matched.code) {
+      onLogin(matched);
+    } else {
+      setError("Incorrect access code.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center mb-6 text-white">
+          <NHSMark className="w-16 h-16 mb-3" />
+          <h1 className="font-serif text-2xl font-bold tracking-wide text-center">Ignite NHS</h1>
+          <p className="text-blue-200 text-sm mt-1 text-center">Sign in to manage your chapter</p>
+        </div>
+        <Card className="p-6">
+          {stage === "email" && (
+            <form onSubmit={submitEmail} className="space-y-4">
+              <Field label="Member email">
+                <input autoFocus type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@school.edu" className={inputCls} />
+              </Field>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <Btn type="submit" className="w-full">Continue</Btn>
+            </form>
+          )}
+          {stage === "code" && (
+            <form onSubmit={submitCode} className="space-y-4">
+              <p className="text-sm text-slate-600">Hi {matched.name.split(" ")[0]}, enter your access code.</p>
+              <Field label="Access code">
+                <input autoFocus type="text" required value={code} onChange={(e) => setCode(e.target.value)} className={inputCls} />
+              </Field>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <div className="flex gap-2">
+                <Btn variant="ghost" type="button" onClick={() => { setStage("email"); setError(""); }}>Back</Btn>
+                <Btn type="submit" className="flex-1">Sign in</Btn>
+              </div>
+            </form>
+          )}
+        </Card>
+        <p className="text-center text-blue-300 text-xs mt-4">
+          First time here? The chapter administrator ({ADMIN_EMAIL}) can sign in with just their email, then add the rest of the roster.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== DASHBOARD ============================== */
+
+function Dashboard({ db, me, setTab }) {
+  const { members, announcements, events, attendance, warnings } = db;
+  const upcoming = events.filter((e) => e.date >= todayStr()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+  const recentAnn = [...announcements].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+
+  const overallPct = useMemo(() => {
+    if (attendance.length === 0) return null;
+    const present = attendance.filter((a) => a.status === "present" || a.status === "excused").length;
+    return Math.round((present / attendance.length) * 100);
+  }, [attendance]);
+
+  const flaggedList = useMemo(() => {
+    return members
+      .map((m) => ({ m, reasons: isFlagged(m.id, attendance, warnings) }))
+      .filter((x) => x.reasons.length > 0);
+  }, [members, attendance, warnings]);
+
+  const canSeeAnalytics = isAdminMember(me) || DEPT_HEADS.includes(me.role);
+
+  const quickActions = [
+    { show: canManage(me, "events"), label: "Create Event", icon: CalendarPlus, action: () => setTab("events") },
+    { show: canPostAnnouncementFor(me), label: "Post Announcement", icon: Megaphone, action: () => setTab("announcements") },
+    { show: canManage(me, "attendance"), label: "Mark Attendance", icon: CalendarCheck, action: () => setTab("attendance") },
+    { show: isAdminMember(me), label: "Add Member", icon: Users, action: () => setTab("members") },
+    { show: canManage(me, "finance"), label: "Log Transaction", icon: DollarSign, action: () => setTab("finance") },
+  ].filter((a) => a.show);
+
+  return (
+    <div className="space-y-6 max-w-6xl">
+      <div>
+        <h1 className="font-serif text-2xl font-bold text-slate-900">Welcome back, {me.name.split(" ")[0]}</h1>
+        <p className="text-slate-500 text-sm mt-0.5">Here's what's happening in the chapter.</p>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard icon={Users} label="Members" value={members.length} color="blue" />
+        <StatCard icon={CalendarDays} label="Upcoming Events" value={upcoming.length} color="amber" />
+        <StatCard icon={CalendarCheck} label="Avg. Attendance" value={overallPct === null ? "—" : `${overallPct}%`} color="emerald" />
+        <StatCard icon={Flag} label="Flagged Members" value={flaggedList.length} color="red" />
+      </div>
+
+      {quickActions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {quickActions.map((a) => (
+            <Btn key={a.label} variant="secondary" onClick={a.action}><a.icon className="w-4 h-4" />{a.label}</Btn>
+          ))}
+        </div>
+      )}
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-serif font-bold text-slate-900 flex items-center gap-2"><CalendarDays className="w-4 h-4 text-blue-700" /> Upcoming Events</h2>
+            <button className="text-xs font-semibold text-blue-700" onClick={() => setTab("calendar")}>View calendar →</button>
+          </div>
+          {upcoming.length === 0 && <EmptyRow text="No upcoming events yet." />}
+          <div className="space-y-2">
+            {upcoming.map((e) => (
+              <div key={e.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-blue-200">
+                <div className="w-12 h-12 rounded-lg bg-blue-800 text-white flex flex-col items-center justify-center shrink-0">
+                  <span className="text-[10px] font-bold uppercase">{new Date(e.date + "T00:00:00").toLocaleDateString(undefined, { month: "short" })}</span>
+                  <span className="text-base font-bold leading-none">{new Date(e.date + "T00:00:00").getDate()}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm text-slate-800 truncate">{e.title}</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-1 flex-wrap">
+                    {e.time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{e.time}</span>}
+                    {e.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{e.location}</span>}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="font-serif font-bold text-slate-900 flex items-center gap-2 mb-3"><Megaphone className="w-4 h-4 text-blue-700" /> Recent Announcements</h2>
+          {recentAnn.length === 0 && <EmptyRow text="No announcements yet." />}
+          <div className="space-y-3">
+            {recentAnn.map((a) => (
+              <div key={a.id} className="border-b border-slate-100 last:border-0 pb-2 last:pb-0">
+                <div className="flex items-center gap-2">
+                  <Badge className={COLORS_BY_DEPT[a.dept] || "bg-slate-100 text-slate-700 border-slate-200"}>{a.dept}</Badge>
+                  <span className="text-[11px] text-slate-400">{fmtDate(a.date)}</span>
+                </div>
+                <p className="font-semibold text-sm text-slate-800 mt-1">{a.title}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="p-5 lg:col-span-2">
+          <h2 className="font-serif font-bold text-slate-900 flex items-center gap-2 mb-3"><TrendingUp className="w-4 h-4 text-blue-700" /> Attendance Summary</h2>
+          <div className="flex items-center gap-4">
+            <div className="text-4xl font-bold text-blue-900">{overallPct === null ? "—" : `${overallPct}%`}</div>
+            <div className="flex-1">
+              <ProgressBar pct={overallPct || 0} />
+              <p className="text-xs text-slate-500 mt-1">{attendance.length} attendance records logged chapter-wide</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="font-serif font-bold text-slate-900 flex items-center gap-2 mb-1"><Award className="w-4 h-4 text-blue-700" /> Member Stats</h2>
+          <div className="space-y-1.5 mt-2 text-sm">
+            {Object.entries(DEPT_LABELS).map(([roleKey, dept]) => null)}
+            {["Executive Board", "Event Planning", "Marketing", "Finance", "Secretary", "General"].map((dept) => {
+              const count = members.filter((m) => DEPARTMENTS[m.role] === dept).length;
+              return (
+                <div key={dept} className="flex items-center justify-between">
+                  <span className="text-slate-600">{dept}</span>
+                  <span className="font-semibold text-slate-800">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
+
+      {canSeeAnalytics && flaggedList.length > 0 && (
+        <Card className="p-5 border-red-200">
+          <h2 className="font-serif font-bold text-red-800 flex items-center gap-2 mb-3"><Flag className="w-4 h-4" /> Flagged for Review</h2>
+          <p className="text-xs text-slate-500 mb-3">Automatically flagged: below 80% attendance or 2+ warnings.</p>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {flaggedList.map(({ m, reasons }) => (
+              <div key={m.id} className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-100">
+                <div>
+                  <p className="font-semibold text-sm text-slate-800">{m.name}</p>
+                  <p className="text-xs text-red-700">{reasons.join(" · ")}</p>
+                </div>
+                <Badge className="bg-red-100 text-red-700 border-red-200">{m.role}</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, color }) {
+  const colors = {
+    blue: "bg-blue-50 text-blue-800",
+    amber: "bg-amber-50 text-amber-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+    red: "bg-red-50 text-red-700",
+  };
+  return (
+    <Card className="p-4">
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${colors[color]}`}>
+        <Icon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
+      </div>
+      <p className="text-2xl font-bold text-slate-900">{value}</p>
+      <p className="text-xs text-slate-500">{label}</p>
+    </Card>
+  );
+}
+
+function EmptyRow({ text }) {
+  return <p className="text-sm text-slate-400 italic py-3">{text}</p>;
+}
+
+/* ============================== CALENDAR ============================== */
+
+function CalendarView({ db, persist, me }) {
+  const [cursor, setCursor] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null); // event object or 'new'
+  const canEdit = canManage(me, "calendar");
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const eventsByDate = useMemo(() => {
+    const map = {};
+    db.events.forEach((e) => {
+      if (!map[e.date]) map[e.date] = [];
+      map[e.date].push(e);
+    });
+    return map;
+  }, [db.events]);
+
+  const dateKey = (d) => `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+  const saveEvent = async (evt) => {
+    const events = [...db.events];
+    const idx = events.findIndex((e) => e.id === evt.id);
+    if (idx >= 0) events[idx] = evt; else events.push(evt);
+    await persist({ ...db, events });
+    setEditingEvent(null);
+  };
+  const deleteEvent = async (id) => {
+    await persist({ ...db, events: db.events.filter((e) => e.id !== id) });
+    setEditingEvent(null);
+  };
+
+  return (
+    <div className="max-w-5xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Calendar</h1>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {canEdit ? "Tap a date to add or edit an event." : "Chapter events at a glance — viewable by everyone."}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setCursor(new Date(year, month - 1, 1))} className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50"><ChevronLeft className="w-4 h-4" /></button>
+          <span className="font-semibold text-slate-800 w-36 text-center">{cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</span>
+          <button onClick={() => setCursor(new Date(year, month + 1, 1))} className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50"><ChevronRight className="w-4 h-4" /></button>
+        </div>
+      </div>
+
+      <Card className="p-3 sm:p-4">
+        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold uppercase text-slate-400 mb-1">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d}>{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((d, i) => {
+            if (d === null) return <div key={i} />;
+            const key = dateKey(d);
+            const dayEvents = eventsByDate[key] || [];
+            const isToday = key === todayStr();
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedDate(key)}
+                className={`aspect-square rounded-lg border p-1 flex flex-col items-start text-left overflow-hidden transition ${
+                  isToday ? "border-blue-500 ring-1 ring-blue-300" : "border-slate-100"
+                } ${selectedDate === key ? "bg-blue-50" : "hover:bg-slate-50"}`}
+              >
+                <span className={`text-xs font-semibold ${isToday ? "text-blue-700" : "text-slate-600"}`}>{d}</span>
+                <div className="flex flex-wrap gap-0.5 mt-auto">
+                  {dayEvents.slice(0, 3).map((e) => (
+                    <span key={e.id} className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      {selectedDate && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-serif font-bold text-slate-900">{fmtDateLong(selectedDate)}</h3>
+            {canEdit && (
+              <Btn variant="secondary" onClick={() => setEditingEvent({ id: uid(), title: "", date: selectedDate, time: "", location: "", description: "", volunteers: [], photos: [], createdBy: me.id })}>
+                <Plus className="w-4 h-4" /> Add Event
+              </Btn>
+            )}
+          </div>
+          {(eventsByDate[selectedDate] || []).length === 0 && <EmptyRow text="No events on this day." />}
+          <div className="space-y-2">
+            {(eventsByDate[selectedDate] || []).map((e) => (
+              <div key={e.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100">
+                <div>
+                  <p className="font-semibold text-sm text-slate-800">{e.title}</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-2 flex-wrap">
+                    {e.time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{e.time}</span>}
+                    {e.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{e.location}</span>}
+                  </p>
+                </div>
+                {canEdit && (
+                  <div className="flex gap-1">
+                    <button onClick={() => setEditingEvent(e)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => deleteEvent(e.id)} className="p-2 rounded-lg hover:bg-red-50 text-red-600"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {!canEdit && (
+        <p className="text-xs text-slate-400">Only the Head of Event Planning (and administrators) can add or edit events on the calendar.</p>
+      )}
+
+      {editingEvent && (
+        <EventEditModal
+          event={editingEvent}
+          members={db.members}
+          onClose={() => setEditingEvent(null)}
+          onSave={saveEvent}
+        />
+      )}
+    </div>
+  );
+}
+
+function EventEditModal({ event, members, onClose, onSave }) {
+  const [form, setForm] = useState(event);
+  const [uploading, setUploading] = useState(false);
+
+  const toggleVolunteer = (m) => {
+    const exists = form.volunteers.some((v) => v.memberId === m.id);
+    setForm({
+      ...form,
+      volunteers: exists ? form.volunteers.filter((v) => v.memberId !== m.id) : [...form.volunteers, { memberId: m.id, name: m.name }],
+    });
+  };
+
+  const handlePhoto = async (fileList) => {
+    setUploading(true);
+    const files = Array.from(fileList).slice(0, 4);
+    const newPhotos = [];
+    for (const f of files) {
+      if (f.size > 150 * 1024) continue; // Firestore documents cap at 1MB total, so keep images small
+      const dataUrl = await fileToDataUrl(f);
+      newPhotos.push({ name: f.name, dataUrl });
+    }
+    setForm((prev) => ({ ...prev, photos: [...(prev.photos || []), ...newPhotos] }));
+    setUploading(false);
+  };
+
+  return (
+    <Modal title={event.title ? "Edit Event" : "New Event"} onClose={onClose} wide>
+      <div className="space-y-4">
+        <Field label="Title">
+          <input className={inputCls} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Blood Drive, Chapter Meeting…" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Date"><input type="date" className={inputCls} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></Field>
+          <Field label="Time"><input type="time" className={inputCls} value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} /></Field>
+        </div>
+        <Field label="Location"><input className={inputCls} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></Field>
+        <Field label="Description">
+          <textarea className={inputCls} rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </Field>
+        <Field label="Assign volunteers">
+          <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
+            {members.map((m) => (
+              <label key={m.id} className="flex items-center gap-2 text-sm py-1">
+                <input type="checkbox" checked={form.volunteers.some((v) => v.memberId === m.id)} onChange={() => toggleVolunteer(m)} />
+                {m.name} <span className="text-slate-400 text-xs">({m.role})</span>
+              </label>
+            ))}
+          </div>
+        </Field>
+        <Field label="Files & photos">
+          <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg py-4 text-sm text-slate-500 cursor-pointer hover:bg-slate-50">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            Upload images (max ~150KB each)
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePhoto(e.target.files)} />
+          </label>
+          {form.photos && form.photos.length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {form.photos.map((p, i) => (
+                <div key={i} className="relative">
+                  <img src={p.dataUrl} alt={p.name} className="w-16 h-16 object-cover rounded-lg border border-slate-200" />
+                  <button onClick={() => setForm({ ...form, photos: form.photos.filter((_, idx) => idx !== i) })} className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Field>
+        <div className="flex justify-end gap-2 pt-2">
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn onClick={() => onSave(form)} disabled={!form.title || !form.date}>Save Event</Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================== ANNOUNCEMENTS ============================== */
+
+function AnnouncementsView({ db, persist, me }) {
+  const [showNew, setShowNew] = useState(false);
+  const canPost = canPostAnnouncementFor(me);
+  const sorted = [...db.announcements].sort((a, b) => b.date.localeCompare(a.date));
+
+  const addAnnouncement = async (dept, title, body) => {
+    const newAnn = { id: uid(), dept, title, body, author: me.name, authorId: me.id, date: todayStr() };
+    await persist({ ...db, announcements: [newAnn, ...db.announcements] });
+    setShowNew(false);
+  };
+  const removeAnnouncement = async (id) => {
+    await persist({ ...db, announcements: db.announcements.filter((a) => a.id !== id) });
+  };
+
+  return (
+    <div className="max-w-3xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Announcements</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Posted automatically to every member's dashboard.</p>
+        </div>
+        {canPost && <Btn onClick={() => setShowNew(true)}><Plus className="w-4 h-4" /> New</Btn>}
+      </div>
+
+      {sorted.length === 0 && <Card className="p-8 text-center text-slate-400 text-sm">No announcements yet.</Card>}
+
+      <div className="space-y-3">
+        {sorted.map((a) => (
+          <Card key={a.id} className="p-4">
+            <div className="flex items-center justify-between">
+              <Badge className={COLORS_BY_DEPT[a.dept] || "bg-slate-100 text-slate-700 border-slate-200"}>{a.dept}</Badge>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">{fmtDate(a.date)}</span>
+                {(isAdminMember(me) || a.authorId === me.id) && (
+                  <button onClick={() => removeAnnouncement(a.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                )}
+              </div>
+            </div>
+            <h3 className="font-serif font-bold text-slate-900 mt-2">{a.title}</h3>
+            <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{a.body}</p>
+            <p className="text-xs text-slate-400 mt-2">— {a.author}</p>
+          </Card>
+        ))}
+      </div>
+
+      {showNew && (
+        <NewAnnouncementModal me={me} canPost={canPost} onClose={() => setShowNew(false)} onSave={addAnnouncement} />
+      )}
+    </div>
+  );
+}
+
+function NewAnnouncementModal({ me, canPost, onClose, onSave }) {
+  const options = canPost === "ANY" ? Object.values(DEPT_LABELS).filter((v, i, arr) => arr.indexOf(v) === i) : [canPost];
+  const [dept, setDept] = useState(options[0]);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  return (
+    <Modal title="New Announcement" onClose={onClose}>
+      <div className="space-y-4">
+        {canPost === "ANY" && (
+          <Field label="Department">
+            <select className={inputCls} value={dept} onChange={(e) => setDept(e.target.value)}>
+              {options.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </Field>
+        )}
+        <Field label="Title"><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label="Message"><textarea rows={4} className={inputCls} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
+        <div className="flex justify-end gap-2">
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn disabled={!title || !body} onClick={() => onSave(dept, title, body)}>Post</Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================== EVENTS ============================== */
+
+function EventsView({ db, persist, me }) {
+  const [editingEvent, setEditingEvent] = useState(null);
+  const canEdit = canManage(me, "events");
+  const sorted = [...db.events].sort((a, b) => a.date.localeCompare(b.date));
+  const upcoming = sorted.filter((e) => e.date >= todayStr());
+  const past = sorted.filter((e) => e.date < todayStr()).reverse();
+
+  const saveEvent = async (evt) => {
+    const events = [...db.events];
+    const idx = events.findIndex((e) => e.id === evt.id);
+    if (idx >= 0) events[idx] = evt; else events.push(evt);
+    await persist({ ...db, events });
+    setEditingEvent(null);
+  };
+  const deleteEvent = async (id) => {
+    await persist({ ...db, events: db.events.filter((e) => e.id !== id) });
+    setEditingEvent(null);
+  };
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Events</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{canEdit ? "Create events, assign volunteers, track attendance." : "Chapter event schedule."}</p>
+        </div>
+        {canEdit && (
+          <Btn onClick={() => setEditingEvent({ id: uid(), title: "", date: todayStr(), time: "", location: "", description: "", volunteers: [], photos: [], createdBy: me.id })}>
+            <Plus className="w-4 h-4" /> New Event
+          </Btn>
+        )}
+      </div>
+
+      <div>
+        <h2 className="font-semibold text-slate-700 mb-2 text-sm uppercase tracking-wide">Upcoming</h2>
+        {upcoming.length === 0 && <EmptyRow text="No upcoming events." />}
+        <div className="grid sm:grid-cols-2 gap-3">
+          {upcoming.map((e) => <EventCard key={e.id} e={e} canEdit={canEdit} onEdit={() => setEditingEvent(e)} onDelete={() => deleteEvent(e.id)} />)}
+        </div>
+      </div>
+
+      {past.length > 0 && (
+        <div>
+          <h2 className="font-semibold text-slate-700 mb-2 text-sm uppercase tracking-wide">Past</h2>
+          <div className="grid sm:grid-cols-2 gap-3 opacity-80">
+            {past.map((e) => <EventCard key={e.id} e={e} canEdit={canEdit} onEdit={() => setEditingEvent(e)} onDelete={() => deleteEvent(e.id)} />)}
+          </div>
+        </div>
+      )}
+
+      {editingEvent && <EventEditModal event={editingEvent} members={db.members} onClose={() => setEditingEvent(null)} onSave={saveEvent} />}
+    </div>
+  );
+}
+
+function EventCard({ e, canEdit, onEdit, onDelete }) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-serif font-bold text-slate-900">{e.title}</p>
+          <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+            <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{fmtDate(e.date)}</span>
+            {e.time && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{e.time}</span>}
+          </p>
+          {e.location && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3" />{e.location}</p>}
+        </div>
+        {canEdit && (
+          <div className="flex gap-1 shrink-0">
+            <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"><Pencil className="w-4 h-4" /></button>
+            <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        )}
+      </div>
+      {e.description && <p className="text-sm text-slate-600 mt-2">{e.description}</p>}
+      {e.volunteers && e.volunteers.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {e.volunteers.map((v) => <Badge key={v.memberId} className="bg-blue-50 text-blue-700 border-blue-100">{v.name}</Badge>)}
+        </div>
+      )}
+      {e.photos && e.photos.length > 0 && (
+        <div className="flex gap-1.5 mt-2">
+          {e.photos.slice(0, 4).map((p, i) => <img key={i} src={p.dataUrl} className="w-12 h-12 object-cover rounded-lg border border-slate-200" />)}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ============================== MEMBERS ============================== */
+
+function MembersView({ db, persist, me }) {
+  const [q, setQ] = useState("");
+  const [committeeFilter, setCommitteeFilter] = useState("All");
+  const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
+
+  const committees = ["All", "Executive Board", "Event Planning", "Marketing", "Finance", "Secretary", "General"];
+  const filtered = db.members.filter((m) => {
+    const matchQ = m.name.toLowerCase().includes(q.toLowerCase()) || m.email.toLowerCase().includes(q.toLowerCase());
+    const matchC = committeeFilter === "All" || DEPARTMENTS[m.role] === committeeFilter;
+    return matchQ && matchC;
+  });
+
+  const saveMember = async (member) => {
+    const members = [...db.members];
+    const idx = members.findIndex((m) => m.id === member.id);
+    const withCommittee = { ...member, committee: DEPARTMENTS[member.role] };
+    if (idx >= 0) members[idx] = withCommittee; else members.push(withCommittee);
+    await persist({ ...db, members });
+    setEditing(null);
+  };
+  const removeMember = async (id) => {
+    if (id === me.id) return;
+    await persist({ ...db, members: db.members.filter((m) => m.id !== id) });
+    setEditing(null);
+  };
+
+  return (
+    <div className="max-w-5xl space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Members</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{db.members.length} total members</p>
+        </div>
+        {isAdminMember(me) && (
+          <Btn onClick={() => setEditing({ id: uid(), name: "", email: "", role: "General Member", isAdmin: false, code: "", joinDate: todayStr(), status: "active" })}>
+            <Plus className="w-4 h-4" /> Add Member
+          </Btn>
+        )}
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input className={`${inputCls} pl-9`} placeholder="Search by name or email…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        <select className={inputCls + " w-auto"} value={committeeFilter} onChange={(e) => setCommitteeFilter(e.target.value)}>
+          {committees.map((c) => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {filtered.map((m) => {
+          const { pct } = attendanceStatsFor(m.id, db.attendance);
+          const wCount = db.warnings.filter((w) => w.memberId === m.id).length;
+          const flagged = isFlagged(m.id, db.attendance, db.warnings).length > 0;
+          return (
+            <Card key={m.id} className={`p-4 ${flagged ? "border-red-200" : ""}`}>
+              <div className="flex items-start justify-between">
+                <button className="flex items-center gap-3 text-left" onClick={() => setViewing(m)}>
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm shrink-0">
+                    {m.name.split(" ").map((s) => s[0]).slice(0, 2).join("")}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-slate-800">{m.name}{m.id === me.id && <span className="text-slate-400 font-normal"> (you)</span>}</p>
+                    <p className="text-xs text-slate-500">{m.role}{m.isAdmin && m.role !== "President" ? " · Admin" : ""}</p>
+                  </div>
+                </button>
+                {isAdminMember(me) && (
+                  <button onClick={() => setEditing(m)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"><Pencil className="w-4 h-4" /></button>
+                )}
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-xs">
+                <Badge className={COLORS_BY_DEPT[DEPARTMENTS[m.role]] || "bg-slate-100 text-slate-700 border-slate-200"}>{DEPARTMENTS[m.role]}</Badge>
+                {pct !== null && <span className="text-slate-500">{pct}% attend.</span>}
+                {wCount > 0 && <span className="text-amber-600">{wCount} warning{wCount > 1 ? "s" : ""}</span>}
+                {flagged && <Flag className="w-3.5 h-3.5 text-red-500" />}
+              </div>
+            </Card>
+          );
+        })}
+        {filtered.length === 0 && <p className="text-sm text-slate-400 italic">No members match your search.</p>}
+      </div>
+
+      {editing && (
+        <MemberEditModal
+          member={editing}
+          isSelf={editing.id === me.id}
+          onClose={() => setEditing(null)}
+          onSave={saveMember}
+          onDelete={editing.id !== me.id && db.members.some((m) => m.id === editing.id) ? () => removeMember(editing.id) : null}
+        />
+      )}
+
+      {viewing && <MemberDetailModal member={viewing} db={db} persist={persist} me={me} onClose={() => setViewing(null)} />}
+    </div>
+  );
+}
+
+function MemberEditModal({ member, isSelf, onClose, onSave, onDelete }) {
+  const [form, setForm] = useState(member);
+  return (
+    <Modal title={member.name ? "Edit Member" : "Add Member"} onClose={onClose}>
+      <div className="space-y-4">
+        <Field label="Full name"><input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+        <Field label="Email"><input type="email" className={inputCls} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+        <Field label="Role">
+          <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            {ROLES.map((r) => <option key={r}>{r}</option>)}
+          </select>
+        </Field>
+        <Field label="Access code (optional)">
+          <input className={inputCls} value={form.code || ""} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Leave blank for email-only login" />
+        </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={!!form.isAdmin} disabled={form.role === "President"} onChange={(e) => setForm({ ...form, isAdmin: e.target.checked })} />
+          Grant administrator permissions
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.status !== "inactive"} onChange={(e) => setForm({ ...form, status: e.target.checked ? "active" : "inactive" })} />
+          Active member
+        </label>
+        <div className="flex justify-between items-center pt-2">
+          {onDelete ? (
+            <Btn variant="danger" onClick={onDelete}><Trash2 className="w-4 h-4" /> Remove</Btn>
+          ) : <span />}
+          <div className="flex gap-2">
+            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn disabled={!form.name || !form.email} onClick={() => onSave(form)}>Save</Btn>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function MemberDetailModal({ member, db, persist, me, onClose }) {
+  const { pct, total, present } = attendanceStatsFor(member.id, db.attendance);
+  const memberWarnings = db.warnings.filter((w) => w.memberId === member.id);
+  const [showWarningForm, setShowWarningForm] = useState(false);
+  const [wType, setWType] = useState("attendance");
+  const [wNote, setWNote] = useState("");
+
+  const saveWarning = async () => {
+    if (!wNote.trim()) return;
+    const w = { id: uid(), memberId: member.id, type: wType, note: wNote.trim(), date: todayStr(), issuedBy: me.name };
+    await persist({ ...db, warnings: [w, ...db.warnings] });
+    setWNote("");
+    setShowWarningForm(false);
+  };
+
+  return (
+    <Modal title={member.name} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-lg">
+            {member.name.split(" ").map((s) => s[0]).slice(0, 2).join("")}
+          </div>
+          <div>
+            <p className="font-semibold">{member.role}</p>
+            <p className="text-xs text-slate-500">{member.email}</p>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase text-slate-500 mb-1">Attendance</p>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl font-bold text-blue-900">{pct === null ? "—" : `${pct}%`}</span>
+            <div className="flex-1"><ProgressBar pct={pct || 0} /></div>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">{present} present out of {total} recorded</p>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-semibold uppercase text-slate-500">Warnings ({memberWarnings.length})</p>
+            {isAdminMember(me) && !showWarningForm && (
+              <button onClick={() => setShowWarningForm(true)} className="text-xs font-semibold text-blue-700 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add warning</button>
+            )}
+          </div>
+          {showWarningForm && (
+            <div className="p-3 rounded-lg border border-slate-200 space-y-2 mb-2">
+              <Field label="Reason">
+                <select className={inputCls} value={wType} onChange={(e) => setWType(e.target.value)}>
+                  <option value="attendance">Attendance Warning</option>
+                  <option value="negligence">Negligence Warning</option>
+                </select>
+              </Field>
+              <Field label="Note"><textarea rows={2} className={inputCls} value={wNote} onChange={(e) => setWNote(e.target.value)} placeholder="Explain the reason for this warning…" /></Field>
+              <div className="flex justify-end gap-2">
+                <Btn variant="ghost" onClick={() => setShowWarningForm(false)}>Cancel</Btn>
+                <Btn disabled={!wNote.trim()} onClick={saveWarning}>Save Warning</Btn>
+              </div>
+            </div>
+          )}
+          {memberWarnings.length === 0 && !showWarningForm && <p className="text-sm text-slate-400 italic">No warnings on file.</p>}
+          <div className="space-y-1.5">
+            {memberWarnings.map((w) => (
+              <div key={w.id} className="text-sm p-2 rounded-lg bg-amber-50 border border-amber-100">
+                <span className="font-semibold capitalize">{w.type}</span> — {w.note} <span className="text-xs text-slate-400">({fmtDate(w.date)})</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================== ATTENDANCE ============================== */
+
+function AttendanceView({ db, persist, me }) {
+  const canEdit = canManage(me, "attendance");
+  const [eventId, setEventId] = useState(db.events[0]?.id || "");
+  const [filterMember, setFilterMember] = useState("All");
+
+  const event = db.events.find((e) => e.id === eventId);
+  const recordsForEvent = db.attendance.filter((a) => a.eventId === eventId);
+
+  const setStatus = async (memberId, status) => {
+    const attendance = [...db.attendance];
+    const idx = attendance.findIndex((a) => a.eventId === eventId && a.memberId === memberId);
+    if (idx >= 0) attendance[idx] = { ...attendance[idx], status };
+    else attendance.push({ id: uid(), eventId, memberId, status, date: event?.date || todayStr() });
+    await persist({ ...db, attendance });
+  };
+
+  const filteredMemberHistory = db.members
+    .filter((m) => filterMember === "All" || m.id === filterMember)
+    .map((m) => ({ m, ...attendanceStatsFor(m.id, db.attendance) }));
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      <div>
+        <h1 className="font-serif text-2xl font-bold text-slate-900">Attendance</h1>
+        <p className="text-slate-500 text-sm mt-0.5">{canEdit ? "Mark attendance for meetings and events." : "View chapter attendance history."}</p>
+      </div>
+
+      {canEdit && (
+        <Card className="p-5">
+          <Field label="Select event / meeting">
+            <select className={inputCls} value={eventId} onChange={(e) => setEventId(e.target.value)}>
+              <option value="">— choose —</option>
+              {[...db.events].sort((a, b) => b.date.localeCompare(a.date)).map((e) => (
+                <option key={e.id} value={e.id}>{e.title} · {fmtDate(e.date)}</option>
+              ))}
+            </select>
+          </Field>
+          {eventId && (
+            <div className="mt-4 space-y-1.5 max-h-96 overflow-y-auto">
+              {db.members.map((m) => {
+                const rec = recordsForEvent.find((r) => r.memberId === m.id);
+                return (
+                  <div key={m.id} className="flex items-center justify-between p-2.5 rounded-lg border border-slate-100">
+                    <span className="text-sm font-medium text-slate-700">{m.name}</span>
+                    <div className="flex gap-1">
+                      {["present", "excused", "absent"].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setStatus(m.id, s)}
+                          className={`text-xs px-2.5 py-1 rounded-full font-semibold capitalize border ${
+                            rec?.status === s
+                              ? s === "present" ? "bg-emerald-600 text-white border-emerald-600"
+                              : s === "excused" ? "bg-amber-500 text-white border-amber-500"
+                              : "bg-red-600 text-white border-red-600"
+                              : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >{s}</button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!db.events.length && <p className="text-sm text-slate-400 italic mt-2">Create an event first to take attendance.</p>}
+        </Card>
+      )}
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 className="font-serif font-bold text-slate-900">Attendance Percentages</h2>
+          <select className={inputCls + " w-auto"} value={filterMember} onChange={(e) => setFilterMember(e.target.value)}>
+            <option value="All">All members</option>
+            {db.members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+        <div className="space-y-2">
+          {filteredMemberHistory.map(({ m, pct, present, total }) => (
+            <div key={m.id} className="flex items-center gap-3">
+              <span className="text-sm text-slate-700 w-36 truncate">{m.name}</span>
+              <div className="flex-1"><ProgressBar pct={pct || 0} colorClass={pct !== null && pct < 80 ? "bg-red-500" : "bg-emerald-600"} /></div>
+              <span className="text-xs text-slate-500 w-24 text-right">{pct === null ? "No data" : `${pct}% (${present}/${total})`}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== WARNINGS ============================== */
+
+function WarningsView({ db, persist, me }) {
+  const canAdd = isAdminMember(me);
+  const [showNew, setShowNew] = useState(false);
+  const visible = isAdminMember(me) ? db.warnings : db.warnings.filter((w) => w.memberId === me.id);
+  const sorted = [...visible].sort((a, b) => b.date.localeCompare(a.date));
+
+  const addWarning = async (memberId, type, note) => {
+    const w = { id: uid(), memberId, type, note, date: todayStr(), issuedBy: me.name };
+    await persist({ ...db, warnings: [w, ...db.warnings] });
+    setShowNew(false);
+  };
+  const removeWarning = async (id) => {
+    await persist({ ...db, warnings: db.warnings.filter((w) => w.id !== id) });
+  };
+
+  return (
+    <div className="max-w-3xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Warnings</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{canAdd ? "Attendance and negligence records for all members." : "Your warning record."}</p>
+        </div>
+        {canAdd && <Btn onClick={() => setShowNew(true)}><Plus className="w-4 h-4" /> Add Warning</Btn>}
+      </div>
+
+      {sorted.length === 0 && <Card className="p-8 text-center text-slate-400 text-sm">No warnings on file.</Card>}
+
+      <div className="space-y-2">
+        {sorted.map((w) => {
+          const m = db.members.find((x) => x.id === w.memberId);
+          return (
+            <Card key={w.id} className="p-4 flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge className={w.type === "attendance" ? "bg-red-100 text-red-700 border-red-200" : "bg-orange-100 text-orange-700 border-orange-200"}>
+                    {w.type === "attendance" ? "Attendance Warning" : "Negligence Warning"}
+                  </Badge>
+                  <span className="text-xs text-slate-400">{fmtDate(w.date)}</span>
+                </div>
+                {canAdd && <p className="text-sm font-semibold text-slate-800">{m?.name || "Unknown member"}</p>}
+                <p className="text-sm text-slate-600 mt-0.5">{w.note}</p>
+                <p className="text-xs text-slate-400 mt-1">Issued by {w.issuedBy}</p>
+              </div>
+              {canAdd && <button onClick={() => removeWarning(w.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 shrink-0"><Trash2 className="w-4 h-4" /></button>}
+            </Card>
+          );
+        })}
+      </div>
+
+      {showNew && <NewWarningModal members={db.members} onClose={() => setShowNew(false)} onSave={addWarning} />}
+    </div>
+  );
+}
+
+function NewWarningModal({ members, onClose, onSave }) {
+  const [memberId, setMemberId] = useState(members[0]?.id || "");
+  const [type, setType] = useState("attendance");
+  const [note, setNote] = useState("");
+  return (
+    <Modal title="Add Warning" onClose={onClose}>
+      <div className="space-y-4">
+        <Field label="Member">
+          <select className={inputCls} value={memberId} onChange={(e) => setMemberId(e.target.value)}>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Category">
+          <select className={inputCls} value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="attendance">Attendance Warning</option>
+            <option value="negligence">Negligence Warning</option>
+          </select>
+        </Field>
+        <Field label="Note"><textarea rows={3} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Explain the reason for this warning…" /></Field>
+        <div className="flex justify-end gap-2">
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn disabled={!memberId || !note} onClick={() => onSave(memberId, type, note)}>Save</Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================== FINANCE ============================== */
+
+function FinanceView({ db, persist, me }) {
+  const canEdit = canManage(me, "finance");
+  const [showNew, setShowNew] = useState(false);
+  const sorted = [...db.finance].sort((a, b) => b.date.localeCompare(a.date));
+  const income = db.finance.filter((f) => f.type === "income").reduce((s, f) => s + Number(f.amount), 0);
+  const expense = db.finance.filter((f) => f.type === "expense").reduce((s, f) => s + Number(f.amount), 0);
+  const balance = income - expense;
+
+  const addEntry = async (entry) => {
+    await persist({ ...db, finance: [{ id: uid(), ...entry, loggedBy: me.name }, ...db.finance] });
+    setShowNew(false);
+  };
+  const removeEntry = async (id) => {
+    await persist({ ...db, finance: db.finance.filter((f) => f.id !== id) });
+  };
+
+  return (
+    <div className="max-w-4xl space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Finance</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Chapter budget, income, and expenses.</p>
+        </div>
+        {canEdit && <Btn onClick={() => setShowNew(true)}><Plus className="w-4 h-4" /> Add Entry</Btn>}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="p-4"><p className="text-xs text-slate-500 flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5 text-emerald-600" />Income</p><p className="text-xl font-bold text-emerald-700">${income.toFixed(2)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-slate-500 flex items-center gap-1"><TrendingDown className="w-3.5 h-3.5 text-red-600" />Expenses</p><p className="text-xl font-bold text-red-700">${expense.toFixed(2)}</p></Card>
+        <Card className="p-4"><p className="text-xs text-slate-500">Balance</p><p className={`text-xl font-bold ${balance >= 0 ? "text-blue-900" : "text-red-700"}`}>${balance.toFixed(2)}</p></Card>
+      </div>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="divide-y divide-slate-100">
+          {sorted.length === 0 && <p className="p-6 text-sm text-slate-400 italic">No transactions logged yet.</p>}
+          {sorted.map((f) => (
+            <div key={f.id} className="flex items-center justify-between p-3.5">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{f.description}</p>
+                <p className="text-xs text-slate-500">{f.category} · {fmtDate(f.date)}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`font-bold text-sm ${f.type === "income" ? "text-emerald-700" : "text-red-700"}`}>{f.type === "income" ? "+" : "-"}${Number(f.amount).toFixed(2)}</span>
+                {canEdit && <button onClick={() => removeEntry(f.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {showNew && <NewFinanceModal onClose={() => setShowNew(false)} onSave={addEntry} />}
+    </div>
+  );
+}
+
+function NewFinanceModal({ onClose, onSave }) {
+  const [type, setType] = useState("expense");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState(todayStr());
+  return (
+    <Modal title="Add Transaction" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <button onClick={() => setType("income")} className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${type === "income" ? "bg-emerald-600 text-white border-emerald-600" : "border-slate-200 text-slate-500"}`}>Income</button>
+          <button onClick={() => setType("expense")} className={`flex-1 py-2 rounded-lg text-sm font-semibold border ${type === "expense" ? "bg-red-600 text-white border-red-600" : "border-slate-200 text-slate-500"}`}>Expense</button>
+        </div>
+        <Field label="Amount ($)"><input type="number" min="0" step="0.01" className={inputCls} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+        <Field label="Category"><input className={inputCls} value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Fundraiser, Supplies, Dues…" /></Field>
+        <Field label="Description"><input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+        <Field label="Date"><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <div className="flex justify-end gap-2">
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn disabled={!amount || !description} onClick={() => onSave({ type, amount, category, description, date })}>Save</Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================== SECRETARY ============================== */
+
+function SecretaryView({ db, persist, me }) {
+  const canEdit = canManage(me, "secretary");
+  const [showNew, setShowNew] = useState(false);
+  const sorted = [...db.minutes].sort((a, b) => b.date.localeCompare(a.date));
+
+  const addMinutes = async (entry) => {
+    await persist({ ...db, minutes: [{ id: uid(), ...entry, loggedBy: me.name }, ...db.minutes] });
+    setShowNew(false);
+  };
+  const removeMinutes = async (id) => {
+    await persist({ ...db, minutes: db.minutes.filter((m) => m.id !== id) });
+  };
+
+  return (
+    <div className="max-w-4xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Secretary</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Meeting minutes and document storage.</p>
+        </div>
+        {canEdit && <Btn onClick={() => setShowNew(true)}><Plus className="w-4 h-4" /> New Minutes</Btn>}
+      </div>
+
+      {sorted.length === 0 && <Card className="p-8 text-center text-slate-400 text-sm">No minutes recorded yet.</Card>}
+
+      <div className="space-y-3">
+        {sorted.map((m) => (
+          <Card key={m.id} className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-serif font-bold text-slate-900">{m.title}</p>
+                <p className="text-xs text-slate-400">{fmtDate(m.date)} · logged by {m.loggedBy}</p>
+              </div>
+              {canEdit && <button onClick={() => removeMinutes(m.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>}
+            </div>
+            <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap">{m.content}</p>
+            {m.files && m.files.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {m.files.map((f, i) => (
+                  <a key={i} href={f.dataUrl} download={f.name} className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg text-slate-700">
+                    <Download className="w-3 h-3" /> {f.name}
+                  </a>
+                ))}
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+
+      {showNew && <NewMinutesModal onClose={() => setShowNew(false)} onSave={addMinutes} />}
+    </div>
+  );
+}
+
+function NewMinutesModal({ onClose, onSave }) {
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(todayStr());
+  const [content, setContent] = useState("");
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFiles = async (fileList) => {
+    setUploading(true);
+    const arr = Array.from(fileList).slice(0, 3);
+    const out = [];
+    for (const f of arr) {
+      if (f.size > 150 * 1024) continue;
+      const dataUrl = await fileToDataUrl(f);
+      out.push({ name: f.name, dataUrl });
+    }
+    setFiles((prev) => [...prev, ...out]);
+    setUploading(false);
+  };
+
+  return (
+    <Modal title="New Meeting Minutes" onClose={onClose} wide>
+      <div className="space-y-4">
+        <Field label="Title"><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="General Meeting — October" /></Field>
+        <Field label="Date"><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="Minutes"><textarea rows={6} className={inputCls} value={content} onChange={(e) => setContent(e.target.value)} /></Field>
+        <Field label="Attach documents">
+          <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg py-4 text-sm text-slate-500 cursor-pointer hover:bg-slate-50">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            Upload files (max ~150KB each)
+            <input type="file" multiple className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+          </label>
+          {files.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {files.map((f, i) => <Badge key={i} className="bg-slate-100 text-slate-700 border-slate-200">{f.name}</Badge>)}
+            </div>
+          )}
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn disabled={!title || !content} onClick={() => onSave({ title, date, content, files })}>Save</Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================== MARKETING ============================== */
+
+function MarketingView({ db, persist, me }) {
+  const canEdit = canManage(me, "marketing");
+  const [showNew, setShowNew] = useState(false);
+  const sorted = [...db.campaigns].sort((a, b) => (b.scheduledDate || "").localeCompare(a.scheduledDate || ""));
+
+  const addCampaign = async (entry) => {
+    await persist({ ...db, campaigns: [{ id: uid(), ...entry, createdBy: me.name }, ...db.campaigns] });
+    setShowNew(false);
+  };
+  const removeCampaign = async (id) => {
+    await persist({ ...db, campaigns: db.campaigns.filter((c) => c.id !== id) });
+  };
+
+  return (
+    <div className="max-w-5xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">Marketing</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Posters, campaigns, and scheduled announcements.</p>
+        </div>
+        {canEdit && <Btn onClick={() => setShowNew(true)}><Plus className="w-4 h-4" /> New Campaign</Btn>}
+      </div>
+
+      {sorted.length === 0 && <Card className="p-8 text-center text-slate-400 text-sm">No campaigns yet.</Card>}
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {sorted.map((c) => (
+          <Card key={c.id} className="overflow-hidden">
+            {c.poster && <img src={c.poster} className="w-full h-36 object-cover" />}
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <Badge className={c.status === "scheduled" ? "bg-blue-100 text-blue-800 border-blue-200" : "bg-slate-100 text-slate-700 border-slate-200"}>{c.status}</Badge>
+                {canEdit && <button onClick={() => removeCampaign(c.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>}
+              </div>
+              <p className="font-serif font-bold text-slate-900 mt-2">{c.title}</p>
+              <p className="text-sm text-slate-600 mt-1">{c.description}</p>
+              {c.scheduledDate && <p className="text-xs text-slate-400 mt-2">Scheduled: {fmtDate(c.scheduledDate)}</p>}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {showNew && <NewCampaignModal onClose={() => setShowNew(false)} onSave={addCampaign} />}
+    </div>
+  );
+}
+
+function NewCampaignModal({ onClose, onSave }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState("draft");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [poster, setPoster] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handlePoster = async (file) => {
+    if (!file) return;
+    if (file.size > 150 * 1024) return;
+    setUploading(true);
+    setPoster(await fileToDataUrl(file));
+    setUploading(false);
+  };
+
+  return (
+    <Modal title="New Marketing Campaign" onClose={onClose}>
+      <div className="space-y-4">
+        <Field label="Title"><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label="Description"><textarea rows={3} className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+        <Field label="Status">
+          <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="live">Live</option>
+          </select>
+        </Field>
+        <Field label="Scheduled date (optional)"><input type="date" className={inputCls} value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} /></Field>
+        <Field label="Poster / media">
+          <label className="flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg py-4 text-sm text-slate-500 cursor-pointer hover:bg-slate-50">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            Upload image (max ~150KB)
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePoster(e.target.files[0])} />
+          </label>
+          {poster && <img src={poster} className="mt-2 h-24 rounded-lg border border-slate-200" />}
+        </Field>
+        <div className="flex justify-end gap-2">
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn disabled={!title} onClick={() => onSave({ title, description, status, scheduledDate, poster })}>Save</Btn>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ============================== ADMIN PANEL ============================== */
+
+function AdminPanel({ db, persist, me }) {
+  const admins = db.members.filter((m) => isAdminMember(m));
+  const nonAdmins = db.members.filter((m) => !isAdminMember(m));
+
+  const toggleAdmin = async (member, value) => {
+    if (member.role === "President" && !value) return; // President always admin
+    const members = db.members.map((m) => (m.id === member.id ? { ...m, isAdmin: value } : m));
+    await persist({ ...db, members });
+  };
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h1 className="font-serif text-2xl font-bold text-slate-900">Admin Panel</h1>
+        <p className="text-slate-500 text-sm mt-0.5">Manage who has full administrator permissions.</p>
+      </div>
+
+      <Card className="p-5">
+        <h2 className="font-serif font-bold text-slate-900 mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-blue-700" /> Current Administrators</h2>
+        <div className="space-y-2">
+          {admins.map((m) => (
+            <div key={m.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{m.name}</p>
+                <p className="text-xs text-slate-500">{m.email} · {m.role}</p>
+              </div>
+              {m.role !== "President" && (
+                <Btn variant="danger" onClick={() => toggleAdmin(m, false)}>Revoke</Btn>
+              )}
+              {m.role === "President" && <Badge className="bg-blue-100 text-blue-800 border-blue-200">Founding Admin</Badge>}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <h2 className="font-serif font-bold text-slate-900 mb-3">Grant Admin Access</h2>
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {nonAdmins.map((m) => (
+            <div key={m.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{m.name}</p>
+                <p className="text-xs text-slate-500">{m.email} · {m.role}</p>
+              </div>
+              <Btn variant="secondary" onClick={() => toggleAdmin(m, true)}>Make Admin</Btn>
+            </div>
+          ))}
+          {nonAdmins.length === 0 && <p className="text-sm text-slate-400 italic">Every member is already an admin.</p>}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== PROFILE ============================== */
+
+function ProfileView({ db, me }) {
+  const { pct, total, present } = attendanceStatsFor(me.id, db.attendance);
+  const myWarnings = db.warnings.filter((w) => w.memberId === me.id);
+  const myEvents = db.events.filter((e) => e.volunteers?.some((v) => v.memberId === me.id));
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xl">
+          {me.name.split(" ").map((s) => s[0]).slice(0, 2).join("")}
+        </div>
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-slate-900">{me.name}</h1>
+          <p className="text-slate-500 text-sm">{me.role} · {me.email}</p>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase text-slate-500 mb-1">My Attendance</p>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl font-bold text-blue-900">{pct === null ? "—" : `${pct}%`}</span>
+            <div className="flex-1"><ProgressBar pct={pct || 0} /></div>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">{present} present / {total} recorded</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs font-semibold uppercase text-slate-500 mb-1">Warnings</p>
+          <p className="text-2xl font-bold text-slate-900">{myWarnings.length}</p>
+        </Card>
+      </div>
+
+      {myWarnings.length > 0 && (
+        <Card className="p-5">
+          <h2 className="font-serif font-bold text-slate-900 mb-2">Warning Notes</h2>
+          <div className="space-y-2">
+            {myWarnings.map((w) => (
+              <div key={w.id} className="text-sm p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+                <span className="font-semibold capitalize">{w.type}</span> — {w.note} <span className="text-xs text-slate-400">({fmtDate(w.date)})</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card className="p-5">
+        <h2 className="font-serif font-bold text-slate-900 mb-2">Events I'm Volunteering For</h2>
+        {myEvents.length === 0 && <EmptyRow text="You're not signed up for any events yet." />}
+        <div className="space-y-2">
+          {myEvents.map((e) => (
+            <div key={e.id} className="text-sm p-2.5 rounded-lg border border-slate-100 flex justify-between">
+              <span className="font-medium text-slate-700">{e.title}</span>
+              <span className="text-slate-400 text-xs">{fmtDate(e.date)}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== MOUNT ============================== */
+const rootEl = document.getElementById("root");
+ReactDOM.createRoot(rootEl).render(<App />);
+
+</script>
+</body>
+</html>

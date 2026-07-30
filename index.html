@@ -1,0 +1,850 @@
+
+
+Conversations
+Gemini
+Boost your productivity with Gemini in Gmail
+Get higher access for Gemini across various apps, including Gmail. And 400 GB of storage at EGP 62.99 for 3 months EGP 249.99.
+57% of 15 GB used
+Terms · Privacy · Programme Policies
+Last account activity: 0 minutes ago
+Details
+
+摘要
+翻译
+扩写
+重写
+解释说明
+语法
+问答
+解释代码
+Explain
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ignite NHS</title>
+<meta name="description" content="Ignite NHS — the central hub for running your National Honor Society chapter." />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='23' fill='%231e3a8a'/%3E%3Ccircle cx='24' cy='24' r='23' stroke='%23fbbf24' stroke-width='1.5'/%3E%3C/svg%3E" />
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Firebase compat SDK (global "firebase" object). -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; padding: 0; background: #f8fafc; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- Pre-compiled from JSX to plain JavaScript (no in-browser Babel, no eval — works even under
+     strict Content-Security-Policy environments like school-managed Chromebooks). -->
+<script type="module">
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import ReactDOM from "react-dom/client";
+import {
+  Home,
+  Megaphone,
+  Users,
+  CalendarCheck,
+  AlertTriangle,
+  CalendarDays,
+  DollarSign,
+  FileText,
+  Image as ImageIcon,
+  Shield,
+  LogOut,
+  Plus,
+  Search,
+  Trash2,
+  Pencil,
+  Check,
+  X,
+  Menu,
+  Flag,
+  Clock,
+  MapPin,
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  UserCheck,
+  UserX,
+  Award,
+  Flame,
+  ClipboardList,
+  Bell,
+  Loader2,
+  ChevronDown,
+  Download,
+  CalendarPlus
+} from "lucide-react";
+const firebaseConfig = {
+  apiKey: "AIzaSyA-QBDmoFeHFIPdmbrJWmoEqq3LrwMui64",
+  authDomain: "ignite-nhs.firebaseapp.com",
+  projectId: "ignite-nhs",
+  storageBucket: "ignite-nhs.firebasestorage.app",
+  messagingSenderId: "684337950748",
+  appId: "1:684337950748:web:029d0c3361dbfc30c96fd9"
+};
+let firebaseApp = null;
+let firestoreDb = null;
+let firebaseInitError = null;
+try {
+  firebaseApp = firebase.initializeApp(firebaseConfig);
+  firestoreDb = firebase.firestore();
+} catch (e) {
+  console.error("Firebase failed to initialize", e);
+  firebaseInitError = e;
+}
+const ROLES = [
+  "President",
+  "Vice President",
+  "Head of Event Planning",
+  "Event Planner",
+  "Head of Marketing",
+  "Marketing",
+  "Head of Finance",
+  "Finance",
+  "Head of Secretary",
+  "Secretary",
+  "General Member"
+];
+const DEPARTMENTS = {
+  "Head of Event Planning": "Event Planning",
+  "Event Planner": "Event Planning",
+  "Head of Marketing": "Marketing",
+  "Marketing": "Marketing",
+  "Head of Finance": "Finance",
+  "Finance": "Finance",
+  "Head of Secretary": "Secretary",
+  "Secretary": "Secretary",
+  "President": "Executive Board",
+  "Vice President": "Executive Board",
+  "General Member": "General"
+};
+const DEPT_HEADS = ["Head of Event Planning", "Head of Marketing", "Head of Finance", "Head of Secretary"];
+const DEPT_LABELS = { "Head of Event Planning": "Event Planning", "Head of Marketing": "Marketing", "Head of Finance": "Finance", "Head of Secretary": "Secretary" };
+const ADMIN_EMAIL = "shahd.fouad2009@gmail.com";
+const COLORS_BY_DEPT = {
+  "Event Planning": "bg-blue-100 text-blue-800 border-blue-200",
+  "Marketing": "bg-amber-100 text-amber-800 border-amber-200",
+  "Finance": "bg-emerald-100 text-emerald-800 border-emerald-200",
+  "Secretary": "bg-indigo-100 text-indigo-800 border-indigo-200",
+  "Executive Board": "bg-slate-200 text-slate-800 border-slate-300"
+};
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const todayStr = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+const fmtDate = (d) => {
+  if (!d) return "";
+  const dt = /* @__PURE__ */ new Date(d + "T00:00:00");
+  return dt.toLocaleDateString(void 0, { month: "short", day: "numeric", year: "numeric" });
+};
+const fmtDateLong = (d) => {
+  if (!d) return "";
+  const dt = /* @__PURE__ */ new Date(d + "T00:00:00");
+  return dt.toLocaleDateString(void 0, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+};
+function isAdminMember(m) {
+  return !!(m && (m.isAdmin || m.role === "President"));
+}
+function canPostAnnouncementFor(m) {
+  if (!m) return null;
+  if (isAdminMember(m)) return "ANY";
+  if (DEPT_HEADS.includes(m.role)) return DEPT_LABELS[m.role];
+  return null;
+}
+function canManage(m, section) {
+  if (!m) return false;
+  if (isAdminMember(m)) return true;
+  if (section === "events") return m.role === "Head of Event Planning";
+  if (section === "finance") return m.role === "Head of Finance";
+  if (section === "secretary") return m.role === "Head of Secretary";
+  if (section === "marketing") return false;
+  if (section === "attendance") return m.role === "Head of Secretary";
+  if (section === "warnings") return false;
+  if (section === "members") return false;
+  if (section === "calendar") return m.role === "Head of Event Planning";
+  return false;
+}
+function canView(m, section) {
+  if (!m) return false;
+  if (isAdminMember(m) || canManage(m, section)) return true;
+  if (section === "finance") return m.role === "Finance";
+  if (section === "secretary") return m.role === "Secretary";
+  if (section === "marketing") return m.role === "Marketing" || m.role === "Head of Marketing";
+  return true;
+}
+function attendanceStatsFor(memberId, attendance) {
+  const recs = attendance.filter((a) => a.memberId === memberId);
+  const present = recs.filter((a) => a.status === "present" || a.status === "excused").length;
+  const total = recs.length;
+  const pct = total === 0 ? null : Math.round(present / total * 100);
+  return { total, present, pct };
+}
+function isFlagged(memberId, attendance, warnings) {
+  const { pct, total } = attendanceStatsFor(memberId, attendance);
+  const wCount = warnings.filter((w) => w.memberId === memberId).length;
+  const reasons = [];
+  if (total >= 2 && pct !== null && pct < 80) reasons.push(`Attendance ${pct}%`);
+  if (wCount >= 2) reasons.push(`${wCount} warnings`);
+  return reasons;
+}
+const FS_COLLECTION = "ignite_nhs";
+const FS_KEYS = ["members", "announcements", "events", "attendance", "warnings", "finance", "minutes", "campaigns"];
+const SESSION_KEY = "ignite_nhs_session_member_id";
+function defaultMembers() {
+  return [
+    {
+      id: "admin-seed-1",
+      name: "Shahd Fouad",
+      email: ADMIN_EMAIL,
+      role: "President",
+      isAdmin: true,
+      committee: "Executive Board",
+      code: "",
+      joinDate: todayStr(),
+      status: "active"
+    }
+  ];
+}
+async function loadDB() {
+  const result = {};
+  let membersDocExists = true;
+  await Promise.all(
+    FS_KEYS.map(async (key) => {
+      try {
+        const snap = await firestoreDb.collection(FS_COLLECTION).doc(key).get();
+        result[key] = snap.exists && Array.isArray(snap.data().items) ? snap.data().items : [];
+        if (key === "members") membersDocExists = snap.exists;
+      } catch (e) {
+        console.error(`Failed to load ${key}`, e);
+        result[key] = [];
+      }
+    })
+  );
+  if (!membersDocExists) {
+    result.members = defaultMembers();
+    try {
+      await firestoreDb.collection(FS_COLLECTION).doc("members").set({ items: result.members });
+    } catch (e) {
+      console.error("Failed to seed admin member", e);
+    }
+  }
+  return result;
+}
+async function saveDB(db) {
+  try {
+    await Promise.all(
+      FS_KEYS.map((key) => firestoreDb.collection(FS_COLLECTION).doc(key).set({ items: db[key] || [] }))
+    );
+    return true;
+  } catch (e) {
+    console.error("save failed", e);
+    return false;
+  }
+}
+async function loadSession() {
+  try {
+    return localStorage.getItem(SESSION_KEY);
+  } catch (e) {
+    return null;
+  }
+}
+async function saveSession(memberId) {
+  try {
+    localStorage.setItem(SESSION_KEY, memberId || "");
+  } catch (e) {
+  }
+}
+function NHSMark({ className = "w-9 h-9" }) {
+  return /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 48 48", className, fill: "none" }, /* @__PURE__ */ React.createElement("circle", { cx: "24", cy: "24", r: "23", fill: "#1e3a8a" }), /* @__PURE__ */ React.createElement("circle", { cx: "24", cy: "24", r: "23", stroke: "#fbbf24", strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("path", { d: "M24 10c-1.8 2-2.6 4-2.6 6.2 0 2.6 1.6 3.6 1.6 5.6 0 1.4-.8 2.2-1.8 3 1 .6 1.8 1.6 1.8 3 0 2-2 2.8-2 4.8h6c0-2-2-2.8-2-4.8 0-1.4.8-2.4 1.8-3-1-.8-1.8-1.6-1.8-3 0-2 1.6-3 1.6-5.6 0-2.2-.8-4.2-2.6-6.2z", fill: "#fbbf24" }), /* @__PURE__ */ React.createElement("rect", { x: "21.5", y: "30.5", width: "5", height: "8", rx: "1", fill: "#fbbf24" }), /* @__PURE__ */ React.createElement("path", { d: "M12 40c3-3 7-4.5 12-4.5s9 1.5 12 4.5", stroke: "#fbbf24", strokeWidth: "1.6", strokeLinecap: "round", fill: "none" }));
+}
+function Card({ children, className = "" }) {
+  return /* @__PURE__ */ React.createElement("div", { className: `bg-white rounded-2xl border border-slate-200 shadow-sm ${className}` }, children);
+}
+function Badge({ children, className = "" }) {
+  return /* @__PURE__ */ React.createElement("span", { className: `inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${className}` }, children);
+}
+function Btn({ children, onClick, variant = "primary", className = "", type = "button", disabled }) {
+  const base = "inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed";
+  const styles = {
+    primary: "bg-blue-800 text-white hover:bg-blue-900 shadow-sm",
+    secondary: "bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200",
+    ghost: "bg-transparent text-slate-600 hover:bg-slate-100",
+    danger: "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200",
+    gold: "bg-amber-500 text-white hover:bg-amber-600 shadow-sm"
+  };
+  return /* @__PURE__ */ React.createElement("button", { type, disabled, onClick, className: `${base} ${styles[variant]} ${className}` }, children);
+}
+function Field({ label, children }) {
+  return /* @__PURE__ */ React.createElement("label", { className: "block" }, /* @__PURE__ */ React.createElement("span", { className: "block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1" }, label), children);
+}
+const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+function Modal({ title, onClose, children, wide }) {
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4", onClick: onClose }, /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      className: `bg-white rounded-t-2xl sm:rounded-2xl w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} max-h-[92vh] overflow-y-auto shadow-xl`,
+      onClick: (e) => e.stopPropagation()
+    },
+    /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10" }, /* @__PURE__ */ React.createElement("h3", { className: "font-serif text-lg font-bold text-slate-900" }, title), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "p-1.5 rounded-full hover:bg-slate-100 text-slate-500" }, /* @__PURE__ */ React.createElement(X, { className: "w-5 h-5" }))),
+    /* @__PURE__ */ React.createElement("div", { className: "p-5" }, children)
+  ));
+}
+function ProgressBar({ pct, colorClass = "bg-blue-700" }) {
+  const p = pct === null || pct === void 0 ? 0 : pct;
+  return /* @__PURE__ */ React.createElement("div", { className: "w-full h-2 bg-slate-100 rounded-full overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: `h-full ${colorClass} rounded-full transition-all`, style: { width: `${Math.min(100, p)}%` } }));
+}
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+function App() {
+  const [db, setDb] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState(null);
+  const [tab, setTab] = useState("dashboard");
+  const [navOpen, setNavOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  useEffect(() => {
+    if (firebaseInitError) {
+      setLoading(false);
+      return;
+    }
+    (async () => {
+      const [database, sessionId] = await Promise.all([loadDB(), loadSession()]);
+      setDb(database);
+      if (sessionId) {
+        const found = database.members.find((m) => m.id === sessionId);
+        if (found) setMe(found);
+      }
+      setLoading(false);
+    })();
+  }, []);
+  const persist = useCallback(async (nextDb) => {
+    setDb(nextDb);
+    setSaving(true);
+    const ok = await saveDB(nextDb);
+    setSaving(false);
+    setSaveError(!ok);
+  }, []);
+  const handleLogin = (member) => {
+    setMe(member);
+    saveSession(member.id);
+    setTab("dashboard");
+  };
+  const handleLogout = () => {
+    setMe(null);
+    saveSession("");
+  };
+  if (firebaseInitError) {
+    return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-50 p-6" }, /* @__PURE__ */ React.createElement("div", { className: "max-w-md text-center" }, /* @__PURE__ */ React.createElement("div", { className: "w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4" }, /* @__PURE__ */ React.createElement(AlertTriangle, { className: "w-6 h-6" })), /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-xl font-bold text-slate-900" }, "Couldn't connect to the database"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mt-2" }, "The Firebase configuration at the top of this file looks incomplete or incorrect. Double-check the", /* @__PURE__ */ React.createElement("code", { className: "mx-1 px-1.5 py-0.5 bg-slate-100 rounded text-xs" }, "firebaseConfig"), "values match your Firebase project's web app settings, then reload this page.")));
+  }
+  useEffect(() => {
+    if (db && me) {
+      const fresh = db.members.find((m) => m.id === me.id);
+      if (fresh && JSON.stringify(fresh) !== JSON.stringify(me)) setMe(fresh);
+      if (!fresh) handleLogout();
+    }
+  }, [db]);
+  if (loading) {
+    return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-50" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col items-center gap-3 text-blue-800" }, /* @__PURE__ */ React.createElement(Loader2, { className: "w-8 h-8 animate-spin" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm font-medium" }, "Loading Ignite NHS\u2026")));
+  }
+  if (!me) {
+    return /* @__PURE__ */ React.createElement(LoginScreen, { db, onLogin: handleLogin, persist });
+  }
+  const NAV = [
+    { key: "dashboard", label: "Dashboard", icon: Home, show: true },
+    { key: "calendar", label: "Calendar", icon: CalendarDays, show: true },
+    { key: "announcements", label: "Announcements", icon: Megaphone, show: true },
+    { key: "events", label: "Events", icon: ClipboardList, show: true },
+    { key: "members", label: "Members", icon: Users, show: canView(me, "members") },
+    { key: "attendance", label: "Attendance", icon: CalendarCheck, show: true },
+    { key: "warnings", label: "Warnings", icon: AlertTriangle, show: true },
+    { key: "finance", label: "Finance", icon: DollarSign, show: canView(me, "finance") },
+    { key: "secretary", label: "Secretary", icon: FileText, show: canView(me, "secretary") },
+    { key: "marketing", label: "Marketing", icon: ImageIcon, show: canView(me, "marketing") },
+    { key: "admin", label: "Admin Panel", icon: Shield, show: isAdminMember(me) }
+  ].filter((n) => n.show);
+  const viewProps = { db, persist, me, setTab };
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen bg-slate-50 font-sans text-slate-800" }, /* @__PURE__ */ React.createElement("style", null, `
+        .font-serif { font-family: Georgia, 'Times New Roman', serif; }
+        * { -webkit-tap-highlight-color: transparent; }
+      `), /* @__PURE__ */ React.createElement("header", { className: "sticky top-0 z-30 bg-blue-900 text-white shadow-md" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("button", { className: "lg:hidden p-1.5 -ml-1 rounded-lg hover:bg-blue-800", onClick: () => setNavOpen(true) }, /* @__PURE__ */ React.createElement(Menu, { className: "w-6 h-6" })), /* @__PURE__ */ React.createElement(NHSMark, { className: "w-8 h-8 shrink-0" }), /* @__PURE__ */ React.createElement("div", { className: "leading-tight" }, /* @__PURE__ */ React.createElement("p", { className: "font-serif font-bold text-base sm:text-lg tracking-wide" }, "Ignite NHS"), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-blue-200 hidden sm:block" }, "National Honor Society Leadership Console"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, saving && /* @__PURE__ */ React.createElement(Loader2, { className: "w-4 h-4 animate-spin text-blue-300" }), /* @__PURE__ */ React.createElement("div", { className: "text-right hidden sm:block" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold" }, me.name), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-blue-200" }, me.role, isAdminMember(me) && me.role !== "President" ? " \xB7 Admin" : "")), /* @__PURE__ */ React.createElement("button", { onClick: handleLogout, className: "p-2 rounded-lg hover:bg-blue-800", title: "Log out" }, /* @__PURE__ */ React.createElement(LogOut, { className: "w-5 h-5" }))))), saveError && /* @__PURE__ */ React.createElement("div", { className: "bg-red-600 text-white text-sm px-4 py-2 flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(AlertTriangle, { className: "w-4 h-4 shrink-0" }), " Your last change couldn't be saved \u2014 check your connection and try again, or it won't stick after a refresh."), /* @__PURE__ */ React.createElement("button", { onClick: () => setSaveError(false), className: "shrink-0" }, /* @__PURE__ */ React.createElement(X, { className: "w-4 h-4" }))), /* @__PURE__ */ React.createElement("div", { className: "flex" }, /* @__PURE__ */ React.createElement("aside", { className: "hidden lg:flex flex-col w-60 shrink-0 border-r border-slate-200 bg-white min-h-[calc(100vh-60px)] sticky top-[60px] self-start" }, /* @__PURE__ */ React.createElement("nav", { className: "p-3 space-y-1" }, NAV.map((n) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: n.key,
+      onClick: () => setTab(n.key),
+      className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${tab === n.key ? "bg-blue-800 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`
+    },
+    /* @__PURE__ */ React.createElement(n.icon, { className: "w-4.5 h-4.5 w-[18px] h-[18px]" }),
+    n.label
+  ))), /* @__PURE__ */ React.createElement("div", { className: "mt-auto p-4" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setTab("profile"), className: "w-full text-left flex items-center gap-3 rounded-xl border border-slate-200 p-3 hover:bg-slate-50" }, /* @__PURE__ */ React.createElement("div", { className: "w-9 h-9 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm" }, me.name.split(" ").map((s) => s[0]).slice(0, 2).join("")), /* @__PURE__ */ React.createElement("div", { className: "leading-tight" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold" }, "My Profile"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "View my records"))))), navOpen && /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-40 lg:hidden" }, /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 bg-slate-900/50", onClick: () => setNavOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "absolute left-0 top-0 bottom-0 w-72 bg-white shadow-xl p-3 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between px-2 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(NHSMark, { className: "w-7 h-7" }), /* @__PURE__ */ React.createElement("span", { className: "font-serif font-bold text-blue-900" }, "Ignite NHS")), /* @__PURE__ */ React.createElement("button", { onClick: () => setNavOpen(false), className: "p-1.5 rounded-full hover:bg-slate-100" }, /* @__PURE__ */ React.createElement(X, { className: "w-5 h-5" }))), /* @__PURE__ */ React.createElement("nav", { className: "space-y-1 mt-1" }, NAV.map((n) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: n.key,
+      onClick: () => {
+        setTab(n.key);
+        setNavOpen(false);
+      },
+      className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${tab === n.key ? "bg-blue-800 text-white" : "text-slate-600 hover:bg-slate-100"}`
+    },
+    /* @__PURE__ */ React.createElement(n.icon, { className: "w-[18px] h-[18px]" }),
+    n.label
+  )), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => {
+        setTab("profile");
+        setNavOpen(false);
+      },
+      className: `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${tab === "profile" ? "bg-blue-800 text-white" : "text-slate-600 hover:bg-slate-100"}`
+    },
+    /* @__PURE__ */ React.createElement(UserCheck, { className: "w-[18px] h-[18px]" }),
+    "My Profile"
+  )))), /* @__PURE__ */ React.createElement("main", { className: "flex-1 min-w-0 p-4 sm:p-6 pb-16" }, tab === "dashboard" && /* @__PURE__ */ React.createElement(Dashboard, { ...viewProps }), tab === "calendar" && /* @__PURE__ */ React.createElement(CalendarView, { ...viewProps }), tab === "announcements" && /* @__PURE__ */ React.createElement(AnnouncementsView, { ...viewProps }), tab === "events" && /* @__PURE__ */ React.createElement(EventsView, { ...viewProps }), tab === "members" && canView(me, "members") && /* @__PURE__ */ React.createElement(MembersView, { ...viewProps }), tab === "attendance" && /* @__PURE__ */ React.createElement(AttendanceView, { ...viewProps }), tab === "warnings" && /* @__PURE__ */ React.createElement(WarningsView, { ...viewProps }), tab === "finance" && canView(me, "finance") && /* @__PURE__ */ React.createElement(FinanceView, { ...viewProps }), tab === "secretary" && canView(me, "secretary") && /* @__PURE__ */ React.createElement(SecretaryView, { ...viewProps }), tab === "marketing" && canView(me, "marketing") && /* @__PURE__ */ React.createElement(MarketingView, { ...viewProps }), tab === "admin" && isAdminMember(me) && /* @__PURE__ */ React.createElement(AdminPanel, { ...viewProps }), tab === "profile" && /* @__PURE__ */ React.createElement(ProfileView, { ...viewProps }))), /* @__PURE__ */ React.createElement("nav", { className: "lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 flex justify-around py-1.5 shadow-[0_-2px_8px_rgba(0,0,0,0.05)]" }, NAV.slice(0, 5).map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: () => setTab(n.key), className: `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg ${tab === n.key ? "text-blue-800" : "text-slate-400"}` }, /* @__PURE__ */ React.createElement(n.icon, { className: "w-5 h-5" }), /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-medium" }, n.label)))));
+}
+function LoginScreen({ db, onLogin, persist }) {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [stage, setStage] = useState("email");
+  const [error, setError] = useState("");
+  const [matched, setMatched] = useState(null);
+  const submitEmail = (e) => {
+    e.preventDefault();
+    setError("");
+    const found = db.members.find((m) => m.email.toLowerCase().trim() === email.toLowerCase().trim());
+    if (!found) {
+      setError("No member found with that email. Ask your chapter admin to add you.");
+      return;
+    }
+    if (found.status === "inactive") {
+      setError("This account is inactive. Contact your chapter admin.");
+      return;
+    }
+    if (found.code) {
+      setMatched(found);
+      setStage("code");
+    } else {
+      onLogin(found);
+    }
+  };
+  const submitCode = (e) => {
+    e.preventDefault();
+    if (code.trim() === matched.code) {
+      onLogin(matched);
+    } else {
+      setError("Incorrect access code.");
+    }
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen bg-gradient-to-b from-blue-900 to-blue-950 flex items-center justify-center p-4" }, /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-sm" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col items-center mb-6 text-white" }, /* @__PURE__ */ React.createElement(NHSMark, { className: "w-16 h-16 mb-3" }), /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold tracking-wide text-center" }, "Ignite NHS"), /* @__PURE__ */ React.createElement("p", { className: "text-blue-200 text-sm mt-1 text-center" }, "Sign in to manage your chapter")), /* @__PURE__ */ React.createElement(Card, { className: "p-6" }, stage === "email" && /* @__PURE__ */ React.createElement("form", { onSubmit: submitEmail, className: "space-y-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Member email" }, /* @__PURE__ */ React.createElement("input", { autoFocus: true, type: "email", required: true, value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@school.edu", className: inputCls })), error && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-red-600" }, error), /* @__PURE__ */ React.createElement(Btn, { type: "submit", className: "w-full" }, "Continue")), stage === "code" && /* @__PURE__ */ React.createElement("form", { onSubmit: submitCode, className: "space-y-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600" }, "Hi ", matched.name.split(" ")[0], ", enter your access code."), /* @__PURE__ */ React.createElement(Field, { label: "Access code" }, /* @__PURE__ */ React.createElement("input", { autoFocus: true, type: "text", required: true, value: code, onChange: (e) => setCode(e.target.value), className: inputCls })), error && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-red-600" }, error), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", type: "button", onClick: () => {
+    setStage("email");
+    setError("");
+  } }, "Back"), /* @__PURE__ */ React.createElement(Btn, { type: "submit", className: "flex-1" }, "Sign in")))), /* @__PURE__ */ React.createElement("p", { className: "text-center text-blue-300 text-xs mt-4" }, "First time here? The chapter administrator (", ADMIN_EMAIL, ") can sign in with just their email, then add the rest of the roster.")));
+}
+function Dashboard({ db, me, setTab }) {
+  const { members, announcements, events, attendance, warnings } = db;
+  const upcoming = events.filter((e) => e.date >= todayStr()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+  const recentAnn = [...announcements].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  const overallPct = useMemo(() => {
+    if (attendance.length === 0) return null;
+    const present = attendance.filter((a) => a.status === "present" || a.status === "excused").length;
+    return Math.round(present / attendance.length * 100);
+  }, [attendance]);
+  const flaggedList = useMemo(() => {
+    return members.map((m) => ({ m, reasons: isFlagged(m.id, attendance, warnings) })).filter((x) => x.reasons.length > 0);
+  }, [members, attendance, warnings]);
+  const canSeeAnalytics = isAdminMember(me) || DEPT_HEADS.includes(me.role);
+  const quickActions = [
+    { show: canManage(me, "events"), label: "Create Event", icon: CalendarPlus, action: () => setTab("events") },
+    { show: canPostAnnouncementFor(me), label: "Post Announcement", icon: Megaphone, action: () => setTab("announcements") },
+    { show: canManage(me, "attendance"), label: "Mark Attendance", icon: CalendarCheck, action: () => setTab("attendance") },
+    { show: isAdminMember(me), label: "Add Member", icon: Users, action: () => setTab("members") },
+    { show: canManage(me, "finance"), label: "Log Transaction", icon: DollarSign, action: () => setTab("finance") }
+  ].filter((a) => a.show);
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6 max-w-6xl" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Welcome back, ", me.name.split(" ")[0]), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, "Here's what's happening in the chapter.")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 lg:grid-cols-4 gap-3" }, /* @__PURE__ */ React.createElement(StatCard, { icon: Users, label: "Members", value: members.length, color: "blue" }), /* @__PURE__ */ React.createElement(StatCard, { icon: CalendarDays, label: "Upcoming Events", value: upcoming.length, color: "amber" }), /* @__PURE__ */ React.createElement(StatCard, { icon: CalendarCheck, label: "Avg. Attendance", value: overallPct === null ? "\u2014" : `${overallPct}%`, color: "emerald" }), /* @__PURE__ */ React.createElement(StatCard, { icon: Flag, label: "Flagged Members", value: flaggedList.length, color: "red" })), quickActions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, quickActions.map((a) => /* @__PURE__ */ React.createElement(Btn, { key: a.label, variant: "secondary", onClick: a.action }, /* @__PURE__ */ React.createElement(a.icon, { className: "w-4 h-4" }), a.label))), /* @__PURE__ */ React.createElement("div", { className: "grid lg:grid-cols-3 gap-4" }, /* @__PURE__ */ React.createElement(Card, { className: "p-5 lg:col-span-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 flex items-center gap-2" }, /* @__PURE__ */ React.createElement(CalendarDays, { className: "w-4 h-4 text-blue-700" }), " Upcoming Events"), /* @__PURE__ */ React.createElement("button", { className: "text-xs font-semibold text-blue-700", onClick: () => setTab("calendar") }, "View calendar \u2192")), upcoming.length === 0 && /* @__PURE__ */ React.createElement(EmptyRow, { text: "No upcoming events yet." }), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, upcoming.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.id, className: "flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-blue-200" }, /* @__PURE__ */ React.createElement("div", { className: "w-12 h-12 rounded-lg bg-blue-800 text-white flex flex-col items-center justify-center shrink-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-bold uppercase" }, (/* @__PURE__ */ new Date(e.date + "T00:00:00")).toLocaleDateString(void 0, { month: "short" })), /* @__PURE__ */ React.createElement("span", { className: "text-base font-bold leading-none" }, (/* @__PURE__ */ new Date(e.date + "T00:00:00")).getDate())), /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex-1" }, /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-sm text-slate-800 truncate" }, e.title), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 flex items-center gap-1 flex-wrap" }, e.time && /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement(Clock, { className: "w-3 h-3" }), e.time), e.location && /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement(MapPin, { className: "w-3 h-3" }), e.location))))))), /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 flex items-center gap-2 mb-3" }, /* @__PURE__ */ React.createElement(Megaphone, { className: "w-4 h-4 text-blue-700" }), " Recent Announcements"), recentAnn.length === 0 && /* @__PURE__ */ React.createElement(EmptyRow, { text: "No announcements yet." }), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, recentAnn.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "border-b border-slate-100 last:border-0 pb-2 last:pb-0" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement(Badge, { className: COLORS_BY_DEPT[a.dept] || "bg-slate-100 text-slate-700 border-slate-200" }, a.dept), /* @__PURE__ */ React.createElement("span", { className: "text-[11px] text-slate-400" }, fmtDate(a.date))), /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-sm text-slate-800 mt-1" }, a.title)))))), /* @__PURE__ */ React.createElement("div", { className: "grid lg:grid-cols-3 gap-4" }, /* @__PURE__ */ React.createElement(Card, { className: "p-5 lg:col-span-2" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 flex items-center gap-2 mb-3" }, /* @__PURE__ */ React.createElement(TrendingUp, { className: "w-4 h-4 text-blue-700" }), " Attendance Summary"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "text-4xl font-bold text-blue-900" }, overallPct === null ? "\u2014" : `${overallPct}%`), /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement(ProgressBar, { pct: overallPct || 0 }), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mt-1" }, attendance.length, " attendance records logged chapter-wide")))), /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 flex items-center gap-2 mb-1" }, /* @__PURE__ */ React.createElement(Award, { className: "w-4 h-4 text-blue-700" }), " Member Stats"), /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5 mt-2 text-sm" }, Object.entries(DEPT_LABELS).map(([roleKey, dept]) => null), ["Executive Board", "Event Planning", "Marketing", "Finance", "Secretary", "General"].map((dept) => {
+    const count = members.filter((m) => DEPARTMENTS[m.role] === dept).length;
+    return /* @__PURE__ */ React.createElement("div", { key: dept, className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-600" }, dept), /* @__PURE__ */ React.createElement("span", { className: "font-semibold text-slate-800" }, count));
+  })))), canSeeAnalytics && flaggedList.length > 0 && /* @__PURE__ */ React.createElement(Card, { className: "p-5 border-red-200" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-red-800 flex items-center gap-2 mb-3" }, /* @__PURE__ */ React.createElement(Flag, { className: "w-4 h-4" }), " Flagged for Review"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mb-3" }, "Automatically flagged: below 80% attendance or 2+ warnings."), /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 gap-2" }, flaggedList.map(({ m, reasons }) => /* @__PURE__ */ React.createElement("div", { key: m.id, className: "flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-100" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-sm text-slate-800" }, m.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-red-700" }, reasons.join(" \xB7 "))), /* @__PURE__ */ React.createElement(Badge, { className: "bg-red-100 text-red-700 border-red-200" }, m.role))))));
+}
+function StatCard({ icon: Icon, label, value, color }) {
+  const colors = {
+    blue: "bg-blue-50 text-blue-800",
+    amber: "bg-amber-50 text-amber-700",
+    emerald: "bg-emerald-50 text-emerald-700",
+    red: "bg-red-50 text-red-700"
+  };
+  return /* @__PURE__ */ React.createElement(Card, { className: "p-4" }, /* @__PURE__ */ React.createElement("div", { className: `w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${colors[color]}` }, /* @__PURE__ */ React.createElement(Icon, { className: "w-4.5 h-4.5 w-[18px] h-[18px]" })), /* @__PURE__ */ React.createElement("p", { className: "text-2xl font-bold text-slate-900" }, value), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, label));
+}
+function EmptyRow({ text }) {
+  return /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400 italic py-3" }, text);
+}
+function CalendarView({ db, persist, me }) {
+  const [cursor, setCursor] = useState(/* @__PURE__ */ new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const canEdit = canManage(me, "calendar");
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  const eventsByDate = useMemo(() => {
+    const map = {};
+    db.events.forEach((e) => {
+      if (!map[e.date]) map[e.date] = [];
+      map[e.date].push(e);
+    });
+    return map;
+  }, [db.events]);
+  const dateKey = (d) => `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const saveEvent = async (evt) => {
+    const events = [...db.events];
+    const idx = events.findIndex((e) => e.id === evt.id);
+    if (idx >= 0) events[idx] = evt;
+    else events.push(evt);
+    await persist({ ...db, events });
+    setEditingEvent(null);
+  };
+  const deleteEvent = async (id) => {
+    await persist({ ...db, events: db.events.filter((e) => e.id !== id) });
+    setEditingEvent(null);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-5xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Calendar"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, canEdit ? "Tap a date to add or edit an event." : "Chapter events at a glance \u2014 viewable by everyone.")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setCursor(new Date(year, month - 1, 1)), className: "p-2 rounded-lg border border-slate-200 hover:bg-slate-50" }, /* @__PURE__ */ React.createElement(ChevronLeft, { className: "w-4 h-4" })), /* @__PURE__ */ React.createElement("span", { className: "font-semibold text-slate-800 w-36 text-center" }, cursor.toLocaleDateString(void 0, { month: "long", year: "numeric" })), /* @__PURE__ */ React.createElement("button", { onClick: () => setCursor(new Date(year, month + 1, 1)), className: "p-2 rounded-lg border border-slate-200 hover:bg-slate-50" }, /* @__PURE__ */ React.createElement(ChevronRight, { className: "w-4 h-4" })))), /* @__PURE__ */ React.createElement(Card, { className: "p-3 sm:p-4" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-7 gap-1 text-center text-[11px] font-bold uppercase text-slate-400 mb-1" }, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => /* @__PURE__ */ React.createElement("div", { key: d }, d))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-7 gap-1" }, cells.map((d, i) => {
+    if (d === null) return /* @__PURE__ */ React.createElement("div", { key: i });
+    const key = dateKey(d);
+    const dayEvents = eventsByDate[key] || [];
+    const isToday = key === todayStr();
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: i,
+        onClick: () => setSelectedDate(key),
+        className: `aspect-square rounded-lg border p-1 flex flex-col items-start text-left overflow-hidden transition ${isToday ? "border-blue-500 ring-1 ring-blue-300" : "border-slate-100"} ${selectedDate === key ? "bg-blue-50" : "hover:bg-slate-50"}`
+      },
+      /* @__PURE__ */ React.createElement("span", { className: `text-xs font-semibold ${isToday ? "text-blue-700" : "text-slate-600"}` }, d),
+      /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-0.5 mt-auto" }, dayEvents.slice(0, 3).map((e) => /* @__PURE__ */ React.createElement("span", { key: e.id, className: "w-1.5 h-1.5 rounded-full bg-amber-500" })))
+    );
+  }))), selectedDate && /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3" }, /* @__PURE__ */ React.createElement("h3", { className: "font-serif font-bold text-slate-900" }, fmtDateLong(selectedDate)), canEdit && /* @__PURE__ */ React.createElement(Btn, { variant: "secondary", onClick: () => setEditingEvent({ id: uid(), title: "", date: selectedDate, time: "", location: "", description: "", volunteers: [], photos: [], createdBy: me.id }) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " Add Event")), (eventsByDate[selectedDate] || []).length === 0 && /* @__PURE__ */ React.createElement(EmptyRow, { text: "No events on this day." }), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, (eventsByDate[selectedDate] || []).map((e) => /* @__PURE__ */ React.createElement("div", { key: e.id, className: "flex items-center justify-between p-3 rounded-xl border border-slate-100" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-sm text-slate-800" }, e.title), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 flex items-center gap-2 flex-wrap" }, e.time && /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement(Clock, { className: "w-3 h-3" }), e.time), e.location && /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement(MapPin, { className: "w-3 h-3" }), e.location))), canEdit && /* @__PURE__ */ React.createElement("div", { className: "flex gap-1" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setEditingEvent(e), className: "p-2 rounded-lg hover:bg-slate-100 text-slate-500" }, /* @__PURE__ */ React.createElement(Pencil, { className: "w-4 h-4" })), /* @__PURE__ */ React.createElement("button", { onClick: () => deleteEvent(e.id), className: "p-2 rounded-lg hover:bg-red-50 text-red-600" }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" }))))))), !canEdit && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, "Only the Head of Event Planning (and administrators) can add or edit events on the calendar."), editingEvent && /* @__PURE__ */ React.createElement(
+    EventEditModal,
+    {
+      event: editingEvent,
+      members: db.members,
+      onClose: () => setEditingEvent(null),
+      onSave: saveEvent
+    }
+  ));
+}
+function EventEditModal({ event, members, onClose, onSave }) {
+  const [form, setForm] = useState(event);
+  const [uploading, setUploading] = useState(false);
+  const toggleVolunteer = (m) => {
+    const exists = form.volunteers.some((v) => v.memberId === m.id);
+    setForm({
+      ...form,
+      volunteers: exists ? form.volunteers.filter((v) => v.memberId !== m.id) : [...form.volunteers, { memberId: m.id, name: m.name }]
+    });
+  };
+  const handlePhoto = async (fileList) => {
+    setUploading(true);
+    const files = Array.from(fileList).slice(0, 4);
+    const newPhotos = [];
+    for (const f of files) {
+      if (f.size > 150 * 1024) continue;
+      const dataUrl = await fileToDataUrl(f);
+      newPhotos.push({ name: f.name, dataUrl });
+    }
+    setForm((prev) => ({ ...prev, photos: [...prev.photos || [], ...newPhotos] }));
+    setUploading(false);
+  };
+  return /* @__PURE__ */ React.createElement(Modal, { title: event.title ? "Edit Event" : "New Event", onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Title" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: form.title, onChange: (e) => setForm({ ...form, title: e.target.value }), placeholder: "Blood Drive, Chapter Meeting\u2026" })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement(Field, { label: "Date" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: form.date, onChange: (e) => setForm({ ...form, date: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Time" }, /* @__PURE__ */ React.createElement("input", { type: "time", className: inputCls, value: form.time, onChange: (e) => setForm({ ...form, time: e.target.value }) }))), /* @__PURE__ */ React.createElement(Field, { label: "Location" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: form.location, onChange: (e) => setForm({ ...form, location: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement("textarea", { className: inputCls, rows: 3, value: form.description, onChange: (e) => setForm({ ...form, description: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Assign volunteers" }, /* @__PURE__ */ React.createElement("div", { className: "max-h-32 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1" }, members.map((m) => /* @__PURE__ */ React.createElement("label", { key: m.id, className: "flex items-center gap-2 text-sm py-1" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: form.volunteers.some((v) => v.memberId === m.id), onChange: () => toggleVolunteer(m) }), m.name, " ", /* @__PURE__ */ React.createElement("span", { className: "text-slate-400 text-xs" }, "(", m.role, ")"))))), /* @__PURE__ */ React.createElement(Field, { label: "Files & photos" }, /* @__PURE__ */ React.createElement("label", { className: "flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg py-4 text-sm text-slate-500 cursor-pointer hover:bg-slate-50" }, uploading ? /* @__PURE__ */ React.createElement(Loader2, { className: "w-4 h-4 animate-spin" }) : /* @__PURE__ */ React.createElement(Upload, { className: "w-4 h-4" }), "Upload images (max ~150KB each)", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/*", multiple: true, className: "hidden", onChange: (e) => handlePhoto(e.target.files) })), form.photos && form.photos.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2 flex-wrap" }, form.photos.map((p, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "relative" }, /* @__PURE__ */ React.createElement("img", { src: p.dataUrl, alt: p.name, className: "w-16 h-16 object-cover rounded-lg border border-slate-200" }), /* @__PURE__ */ React.createElement("button", { onClick: () => setForm({ ...form, photos: form.photos.filter((_, idx) => idx !== i) }), className: "absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5" }, /* @__PURE__ */ React.createElement(X, { className: "w-3 h-3" })))))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2 pt-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => onSave(form), disabled: !form.title || !form.date }, "Save Event"))));
+}
+function AnnouncementsView({ db, persist, me }) {
+  const [showNew, setShowNew] = useState(false);
+  const canPost = canPostAnnouncementFor(me);
+  const sorted = [...db.announcements].sort((a, b) => b.date.localeCompare(a.date));
+  const addAnnouncement = async (dept, title, body) => {
+    const newAnn = { id: uid(), dept, title, body, author: me.name, authorId: me.id, date: todayStr() };
+    await persist({ ...db, announcements: [newAnn, ...db.announcements] });
+    setShowNew(false);
+  };
+  const removeAnnouncement = async (id) => {
+    await persist({ ...db, announcements: db.announcements.filter((a) => a.id !== id) });
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-3xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Announcements"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, "Posted automatically to every member's dashboard.")), canPost && /* @__PURE__ */ React.createElement(Btn, { onClick: () => setShowNew(true) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " New")), sorted.length === 0 && /* @__PURE__ */ React.createElement(Card, { className: "p-8 text-center text-slate-400 text-sm" }, "No announcements yet."), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, sorted.map((a) => /* @__PURE__ */ React.createElement(Card, { key: a.id, className: "p-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement(Badge, { className: COLORS_BY_DEPT[a.dept] || "bg-slate-100 text-slate-700 border-slate-200" }, a.dept), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs text-slate-400" }, fmtDate(a.date)), (isAdminMember(me) || a.authorId === me.id) && /* @__PURE__ */ React.createElement("button", { onClick: () => removeAnnouncement(a.id), className: "text-slate-400 hover:text-red-600" }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" })))), /* @__PURE__ */ React.createElement("h3", { className: "font-serif font-bold text-slate-900 mt-2" }, a.title), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mt-1 whitespace-pre-wrap" }, a.body), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-2" }, "\u2014 ", a.author)))), showNew && /* @__PURE__ */ React.createElement(NewAnnouncementModal, { me, canPost, onClose: () => setShowNew(false), onSave: addAnnouncement }));
+}
+function NewAnnouncementModal({ me, canPost, onClose, onSave }) {
+  const options = canPost === "ANY" ? Object.values(DEPT_LABELS).filter((v, i, arr) => arr.indexOf(v) === i) : [canPost];
+  const [dept, setDept] = useState(options[0]);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  return /* @__PURE__ */ React.createElement(Modal, { title: "New Announcement", onClose }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, canPost === "ANY" && /* @__PURE__ */ React.createElement(Field, { label: "Department" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: dept, onChange: (e) => setDept(e.target.value) }, options.map((o) => /* @__PURE__ */ React.createElement("option", { key: o, value: o }, o)))), /* @__PURE__ */ React.createElement(Field, { label: "Title" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Message" }, /* @__PURE__ */ React.createElement("textarea", { rows: 4, className: inputCls, value: body, onChange: (e) => setBody(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { disabled: !title || !body, onClick: () => onSave(dept, title, body) }, "Post"))));
+}
+function EventsView({ db, persist, me }) {
+  const [editingEvent, setEditingEvent] = useState(null);
+  const canEdit = canManage(me, "events");
+  const sorted = [...db.events].sort((a, b) => a.date.localeCompare(b.date));
+  const upcoming = sorted.filter((e) => e.date >= todayStr());
+  const past = sorted.filter((e) => e.date < todayStr()).reverse();
+  const saveEvent = async (evt) => {
+    const events = [...db.events];
+    const idx = events.findIndex((e) => e.id === evt.id);
+    if (idx >= 0) events[idx] = evt;
+    else events.push(evt);
+    await persist({ ...db, events });
+    setEditingEvent(null);
+  };
+  const deleteEvent = async (id) => {
+    await persist({ ...db, events: db.events.filter((e) => e.id !== id) });
+    setEditingEvent(null);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Events"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, canEdit ? "Create events, assign volunteers, track attendance." : "Chapter event schedule.")), canEdit && /* @__PURE__ */ React.createElement(Btn, { onClick: () => setEditingEvent({ id: uid(), title: "", date: todayStr(), time: "", location: "", description: "", volunteers: [], photos: [], createdBy: me.id }) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " New Event")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "font-semibold text-slate-700 mb-2 text-sm uppercase tracking-wide" }, "Upcoming"), upcoming.length === 0 && /* @__PURE__ */ React.createElement(EmptyRow, { text: "No upcoming events." }), /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 gap-3" }, upcoming.map((e) => /* @__PURE__ */ React.createElement(EventCard, { key: e.id, e, canEdit, onEdit: () => setEditingEvent(e), onDelete: () => deleteEvent(e.id) })))), past.length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "font-semibold text-slate-700 mb-2 text-sm uppercase tracking-wide" }, "Past"), /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 gap-3 opacity-80" }, past.map((e) => /* @__PURE__ */ React.createElement(EventCard, { key: e.id, e, canEdit, onEdit: () => setEditingEvent(e), onDelete: () => deleteEvent(e.id) })))), editingEvent && /* @__PURE__ */ React.createElement(EventEditModal, { event: editingEvent, members: db.members, onClose: () => setEditingEvent(null), onSave: saveEvent }));
+}
+function EventCard({ e, canEdit, onEdit, onDelete }) {
+  return /* @__PURE__ */ React.createElement(Card, { className: "p-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "font-serif font-bold text-slate-900" }, e.title), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap" }, /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement(CalendarDays, { className: "w-3 h-3" }), fmtDate(e.date)), e.time && /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement(Clock, { className: "w-3 h-3" }), e.time)), e.location && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 flex items-center gap-1 mt-0.5" }, /* @__PURE__ */ React.createElement(MapPin, { className: "w-3 h-3" }), e.location)), canEdit && /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: onEdit, className: "p-1.5 rounded-lg hover:bg-slate-100 text-slate-500" }, /* @__PURE__ */ React.createElement(Pencil, { className: "w-4 h-4" })), /* @__PURE__ */ React.createElement("button", { onClick: onDelete, className: "p-1.5 rounded-lg hover:bg-red-50 text-red-600" }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" })))), e.description && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mt-2" }, e.description), e.volunteers && e.volunteers.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1 mt-2" }, e.volunteers.map((v) => /* @__PURE__ */ React.createElement(Badge, { key: v.memberId, className: "bg-blue-50 text-blue-700 border-blue-100" }, v.name))), e.photos && e.photos.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex gap-1.5 mt-2" }, e.photos.slice(0, 4).map((p, i) => /* @__PURE__ */ React.createElement("img", { key: i, src: p.dataUrl, className: "w-12 h-12 object-cover rounded-lg border border-slate-200" }))));
+}
+function MembersView({ db, persist, me }) {
+  const [q, setQ] = useState("");
+  const [committeeFilter, setCommitteeFilter] = useState("All");
+  const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const committees = ["All", "Executive Board", "Event Planning", "Marketing", "Finance", "Secretary", "General"];
+  const filtered = db.members.filter((m) => {
+    const matchQ = m.name.toLowerCase().includes(q.toLowerCase()) || m.email.toLowerCase().includes(q.toLowerCase());
+    const matchC = committeeFilter === "All" || DEPARTMENTS[m.role] === committeeFilter;
+    return matchQ && matchC;
+  });
+  const saveMember = async (member) => {
+    const members = [...db.members];
+    const idx = members.findIndex((m) => m.id === member.id);
+    const withCommittee = { ...member, committee: DEPARTMENTS[member.role] };
+    if (idx >= 0) members[idx] = withCommittee;
+    else members.push(withCommittee);
+    await persist({ ...db, members });
+    setEditing(null);
+  };
+  const removeMember = async (id) => {
+    if (id === me.id) return;
+    await persist({ ...db, members: db.members.filter((m) => m.id !== id) });
+    setEditing(null);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-5xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between flex-wrap gap-2" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Members"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, db.members.length, " total members")), isAdminMember(me) && /* @__PURE__ */ React.createElement(Btn, { onClick: () => setEditing({ id: uid(), name: "", email: "", role: "General Member", isAdmin: false, code: "", joinDate: todayStr(), status: "active" }) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " Add Member")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 flex-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "relative flex-1 min-w-[200px]" }, /* @__PURE__ */ React.createElement(Search, { className: "w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" }), /* @__PURE__ */ React.createElement("input", { className: `${inputCls} pl-9`, placeholder: "Search by name or email\u2026", value: q, onChange: (e) => setQ(e.target.value) })), /* @__PURE__ */ React.createElement("select", { className: inputCls + " w-auto", value: committeeFilter, onChange: (e) => setCommitteeFilter(e.target.value) }, committees.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 lg:grid-cols-3 gap-3" }, filtered.map((m) => {
+    const { pct } = attendanceStatsFor(m.id, db.attendance);
+    const wCount = db.warnings.filter((w) => w.memberId === m.id).length;
+    const flagged = isFlagged(m.id, db.attendance, db.warnings).length > 0;
+    return /* @__PURE__ */ React.createElement(Card, { key: m.id, className: `p-4 ${flagged ? "border-red-200" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("button", { className: "flex items-center gap-3 text-left", onClick: () => setViewing(m) }, /* @__PURE__ */ React.createElement("div", { className: "w-10 h-10 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm shrink-0" }, m.name.split(" ").map((s) => s[0]).slice(0, 2).join("")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-sm text-slate-800" }, m.name, m.id === me.id && /* @__PURE__ */ React.createElement("span", { className: "text-slate-400 font-normal" }, " (you)")), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, m.role, m.isAdmin && m.role !== "President" ? " \xB7 Admin" : ""))), isAdminMember(me) && /* @__PURE__ */ React.createElement("button", { onClick: () => setEditing(m), className: "p-1.5 rounded-lg hover:bg-slate-100 text-slate-400" }, /* @__PURE__ */ React.createElement(Pencil, { className: "w-4 h-4" }))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex items-center gap-2 text-xs" }, /* @__PURE__ */ React.createElement(Badge, { className: COLORS_BY_DEPT[DEPARTMENTS[m.role]] || "bg-slate-100 text-slate-700 border-slate-200" }, DEPARTMENTS[m.role]), pct !== null && /* @__PURE__ */ React.createElement("span", { className: "text-slate-500" }, pct, "% attend."), wCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "text-amber-600" }, wCount, " warning", wCount > 1 ? "s" : ""), flagged && /* @__PURE__ */ React.createElement(Flag, { className: "w-3.5 h-3.5 text-red-500" })));
+  }), filtered.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400 italic" }, "No members match your search.")), editing && /* @__PURE__ */ React.createElement(
+    MemberEditModal,
+    {
+      member: editing,
+      isSelf: editing.id === me.id,
+      onClose: () => setEditing(null),
+      onSave: saveMember,
+      onDelete: editing.id !== me.id && db.members.some((m) => m.id === editing.id) ? () => removeMember(editing.id) : null
+    }
+  ), viewing && /* @__PURE__ */ React.createElement(MemberDetailModal, { member: viewing, db, persist, me, onClose: () => setViewing(null) }));
+}
+function MemberEditModal({ member, isSelf, onClose, onSave, onDelete }) {
+  const [form, setForm] = useState(member);
+  return /* @__PURE__ */ React.createElement(Modal, { title: member.name ? "Edit Member" : "Add Member", onClose }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Full name" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: form.name, onChange: (e) => setForm({ ...form, name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Email" }, /* @__PURE__ */ React.createElement("input", { type: "email", className: inputCls, value: form.email, onChange: (e) => setForm({ ...form, email: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Role" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: form.role, onChange: (e) => setForm({ ...form, role: e.target.value }) }, ROLES.map((r) => /* @__PURE__ */ React.createElement("option", { key: r }, r)))), /* @__PURE__ */ React.createElement(Field, { label: "Access code (optional)" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: form.code || "", onChange: (e) => setForm({ ...form, code: e.target.value }), placeholder: "Leave blank for email-only login" })), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 text-sm" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: !!form.isAdmin, disabled: form.role === "President", onChange: (e) => setForm({ ...form, isAdmin: e.target.checked }) }), "Grant administrator permissions"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 text-sm" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: form.status !== "inactive", onChange: (e) => setForm({ ...form, status: e.target.checked ? "active" : "inactive" }) }), "Active member"), /* @__PURE__ */ React.createElement("div", { className: "flex justify-between items-center pt-2" }, onDelete ? /* @__PURE__ */ React.createElement(Btn, { variant: "danger", onClick: onDelete }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" }), " Remove") : /* @__PURE__ */ React.createElement("span", null), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { disabled: !form.name || !form.email, onClick: () => onSave(form) }, "Save")))));
+}
+function MemberDetailModal({ member, db, persist, me, onClose }) {
+  const { pct, total, present } = attendanceStatsFor(member.id, db.attendance);
+  const memberWarnings = db.warnings.filter((w) => w.memberId === member.id);
+  const [showWarningForm, setShowWarningForm] = useState(false);
+  const [wType, setWType] = useState("attendance");
+  const [wNote, setWNote] = useState("");
+  const saveWarning = async () => {
+    if (!wNote.trim()) return;
+    const w = { id: uid(), memberId: member.id, type: wType, note: wNote.trim(), date: todayStr(), issuedBy: me.name };
+    await persist({ ...db, warnings: [w, ...db.warnings] });
+    setWNote("");
+    setShowWarningForm(false);
+  };
+  return /* @__PURE__ */ React.createElement(Modal, { title: member.name, onClose }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "w-14 h-14 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-lg" }, member.name.split(" ").map((s) => s[0]).slice(0, 2).join("")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "font-semibold" }, member.role), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, member.email))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase text-slate-500 mb-1" }, "Attendance"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-2xl font-bold text-blue-900" }, pct === null ? "\u2014" : `${pct}%`), /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement(ProgressBar, { pct: pct || 0 }))), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-1" }, present, " present out of ", total, " recorded")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase text-slate-500" }, "Warnings (", memberWarnings.length, ")"), isAdminMember(me) && !showWarningForm && /* @__PURE__ */ React.createElement("button", { onClick: () => setShowWarningForm(true), className: "text-xs font-semibold text-blue-700 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(Plus, { className: "w-3.5 h-3.5" }), " Add warning")), showWarningForm && /* @__PURE__ */ React.createElement("div", { className: "p-3 rounded-lg border border-slate-200 space-y-2 mb-2" }, /* @__PURE__ */ React.createElement(Field, { label: "Reason" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: wType, onChange: (e) => setWType(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "attendance" }, "Attendance Warning"), /* @__PURE__ */ React.createElement("option", { value: "negligence" }, "Negligence Warning"))), /* @__PURE__ */ React.createElement(Field, { label: "Note" }, /* @__PURE__ */ React.createElement("textarea", { rows: 2, className: inputCls, value: wNote, onChange: (e) => setWNote(e.target.value), placeholder: "Explain the reason for this warning\u2026" })), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: () => setShowWarningForm(false) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { disabled: !wNote.trim(), onClick: saveWarning }, "Save Warning"))), memberWarnings.length === 0 && !showWarningForm && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400 italic" }, "No warnings on file."), /* @__PURE__ */ React.createElement("div", { className: "space-y-1.5" }, memberWarnings.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.id, className: "text-sm p-2 rounded-lg bg-amber-50 border border-amber-100" }, /* @__PURE__ */ React.createElement("span", { className: "font-semibold capitalize" }, w.type), " \u2014 ", w.note, " ", /* @__PURE__ */ React.createElement("span", { className: "text-xs text-slate-400" }, "(", fmtDate(w.date), ")")))))));
+}
+function AttendanceView({ db, persist, me }) {
+  const canEdit = canManage(me, "attendance");
+  const [eventId, setEventId] = useState(db.events[0]?.id || "");
+  const [filterMember, setFilterMember] = useState("All");
+  const event = db.events.find((e) => e.id === eventId);
+  const recordsForEvent = db.attendance.filter((a) => a.eventId === eventId);
+  const setStatus = async (memberId, status) => {
+    const attendance = [...db.attendance];
+    const idx = attendance.findIndex((a) => a.eventId === eventId && a.memberId === memberId);
+    if (idx >= 0) attendance[idx] = { ...attendance[idx], status };
+    else attendance.push({ id: uid(), eventId, memberId, status, date: event?.date || todayStr() });
+    await persist({ ...db, attendance });
+  };
+  const filteredMemberHistory = db.members.filter((m) => filterMember === "All" || m.id === filterMember).map((m) => ({ m, ...attendanceStatsFor(m.id, db.attendance) }));
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl space-y-6" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Attendance"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, canEdit ? "Mark attendance for meetings and events." : "View chapter attendance history.")), canEdit && /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement(Field, { label: "Select event / meeting" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: eventId, onChange: (e) => setEventId(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014 choose \u2014"), [...db.events].sort((a, b) => b.date.localeCompare(a.date)).map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.title, " \xB7 ", fmtDate(e.date))))), eventId && /* @__PURE__ */ React.createElement("div", { className: "mt-4 space-y-1.5 max-h-96 overflow-y-auto" }, db.members.map((m) => {
+    const rec = recordsForEvent.find((r) => r.memberId === m.id);
+    return /* @__PURE__ */ React.createElement("div", { key: m.id, className: "flex items-center justify-between p-2.5 rounded-lg border border-slate-100" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm font-medium text-slate-700" }, m.name), /* @__PURE__ */ React.createElement("div", { className: "flex gap-1" }, ["present", "excused", "absent"].map((s) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: s,
+        onClick: () => setStatus(m.id, s),
+        className: `text-xs px-2.5 py-1 rounded-full font-semibold capitalize border ${rec?.status === s ? s === "present" ? "bg-emerald-600 text-white border-emerald-600" : s === "excused" ? "bg-amber-500 text-white border-amber-500" : "bg-red-600 text-white border-red-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"}`
+      },
+      s
+    ))));
+  })), !db.events.length && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400 italic mt-2" }, "Create an event first to take attendance.")), /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-3 flex-wrap gap-2" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900" }, "Attendance Percentages"), /* @__PURE__ */ React.createElement("select", { className: inputCls + " w-auto", value: filterMember, onChange: (e) => setFilterMember(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "All" }, "All members"), db.members.map((m) => /* @__PURE__ */ React.createElement("option", { key: m.id, value: m.id }, m.name)))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, filteredMemberHistory.map(({ m, pct, present, total }) => /* @__PURE__ */ React.createElement("div", { key: m.id, className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm text-slate-700 w-36 truncate" }, m.name), /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement(ProgressBar, { pct: pct || 0, colorClass: pct !== null && pct < 80 ? "bg-red-500" : "bg-emerald-600" })), /* @__PURE__ */ React.createElement("span", { className: "text-xs text-slate-500 w-24 text-right" }, pct === null ? "No data" : `${pct}% (${present}/${total})`))))));
+}
+function WarningsView({ db, persist, me }) {
+  const canAdd = isAdminMember(me);
+  const [showNew, setShowNew] = useState(false);
+  const visible = isAdminMember(me) ? db.warnings : db.warnings.filter((w) => w.memberId === me.id);
+  const sorted = [...visible].sort((a, b) => b.date.localeCompare(a.date));
+  const addWarning = async (memberId, type, note) => {
+    const w = { id: uid(), memberId, type, note, date: todayStr(), issuedBy: me.name };
+    await persist({ ...db, warnings: [w, ...db.warnings] });
+    setShowNew(false);
+  };
+  const removeWarning = async (id) => {
+    await persist({ ...db, warnings: db.warnings.filter((w) => w.id !== id) });
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-3xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Warnings"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, canAdd ? "Attendance and negligence records for all members." : "Your warning record.")), canAdd && /* @__PURE__ */ React.createElement(Btn, { onClick: () => setShowNew(true) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " Add Warning")), sorted.length === 0 && /* @__PURE__ */ React.createElement(Card, { className: "p-8 text-center text-slate-400 text-sm" }, "No warnings on file."), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, sorted.map((w) => {
+    const m = db.members.find((x) => x.id === w.memberId);
+    return /* @__PURE__ */ React.createElement(Card, { key: w.id, className: "p-4 flex items-start justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 mb-1" }, /* @__PURE__ */ React.createElement(Badge, { className: w.type === "attendance" ? "bg-red-100 text-red-700 border-red-200" : "bg-orange-100 text-orange-700 border-orange-200" }, w.type === "attendance" ? "Attendance Warning" : "Negligence Warning"), /* @__PURE__ */ React.createElement("span", { className: "text-xs text-slate-400" }, fmtDate(w.date))), canAdd && /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, m?.name || "Unknown member"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mt-0.5" }, w.note), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-1" }, "Issued by ", w.issuedBy)), canAdd && /* @__PURE__ */ React.createElement("button", { onClick: () => removeWarning(w.id), className: "p-1.5 rounded-lg hover:bg-red-50 text-red-500 shrink-0" }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" })));
+  })), showNew && /* @__PURE__ */ React.createElement(NewWarningModal, { members: db.members, onClose: () => setShowNew(false), onSave: addWarning }));
+}
+function NewWarningModal({ members, onClose, onSave }) {
+  const [memberId, setMemberId] = useState(members[0]?.id || "");
+  const [type, setType] = useState("attendance");
+  const [note, setNote] = useState("");
+  return /* @__PURE__ */ React.createElement(Modal, { title: "Add Warning", onClose }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Member" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: memberId, onChange: (e) => setMemberId(e.target.value) }, members.map((m) => /* @__PURE__ */ React.createElement("option", { key: m.id, value: m.id }, m.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Category" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: type, onChange: (e) => setType(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "attendance" }, "Attendance Warning"), /* @__PURE__ */ React.createElement("option", { value: "negligence" }, "Negligence Warning"))), /* @__PURE__ */ React.createElement(Field, { label: "Note" }, /* @__PURE__ */ React.createElement("textarea", { rows: 3, className: inputCls, value: note, onChange: (e) => setNote(e.target.value), placeholder: "Explain the reason for this warning\u2026" })), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { disabled: !memberId || !note, onClick: () => onSave(memberId, type, note) }, "Save"))));
+}
+function FinanceView({ db, persist, me }) {
+  const canEdit = canManage(me, "finance");
+  const [showNew, setShowNew] = useState(false);
+  const sorted = [...db.finance].sort((a, b) => b.date.localeCompare(a.date));
+  const income = db.finance.filter((f) => f.type === "income").reduce((s, f) => s + Number(f.amount), 0);
+  const expense = db.finance.filter((f) => f.type === "expense").reduce((s, f) => s + Number(f.amount), 0);
+  const balance = income - expense;
+  const addEntry = async (entry) => {
+    await persist({ ...db, finance: [{ id: uid(), ...entry, loggedBy: me.name }, ...db.finance] });
+    setShowNew(false);
+  };
+  const removeEntry = async (id) => {
+    await persist({ ...db, finance: db.finance.filter((f) => f.id !== id) });
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Finance"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, "Chapter budget, income, and expenses.")), canEdit && /* @__PURE__ */ React.createElement(Btn, { onClick: () => setShowNew(true) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " Add Entry")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-3" }, /* @__PURE__ */ React.createElement(Card, { className: "p-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(TrendingUp, { className: "w-3.5 h-3.5 text-emerald-600" }), "Income"), /* @__PURE__ */ React.createElement("p", { className: "text-xl font-bold text-emerald-700" }, "$", income.toFixed(2))), /* @__PURE__ */ React.createElement(Card, { className: "p-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(TrendingDown, { className: "w-3.5 h-3.5 text-red-600" }), "Expenses"), /* @__PURE__ */ React.createElement("p", { className: "text-xl font-bold text-red-700" }, "$", expense.toFixed(2))), /* @__PURE__ */ React.createElement(Card, { className: "p-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "Balance"), /* @__PURE__ */ React.createElement("p", { className: `text-xl font-bold ${balance >= 0 ? "text-blue-900" : "text-red-700"}` }, "$", balance.toFixed(2)))), /* @__PURE__ */ React.createElement(Card, { className: "p-0 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "divide-y divide-slate-100" }, sorted.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "p-6 text-sm text-slate-400 italic" }, "No transactions logged yet."), sorted.map((f) => /* @__PURE__ */ React.createElement("div", { key: f.id, className: "flex items-center justify-between p-3.5" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, f.description), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, f.category, " \xB7 ", fmtDate(f.date))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: `font-bold text-sm ${f.type === "income" ? "text-emerald-700" : "text-red-700"}` }, f.type === "income" ? "+" : "-", "$", Number(f.amount).toFixed(2)), canEdit && /* @__PURE__ */ React.createElement("button", { onClick: () => removeEntry(f.id), className: "text-slate-400 hover:text-red-600" }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" }))))))), showNew && /* @__PURE__ */ React.createElement(NewFinanceModal, { onClose: () => setShowNew(false), onSave: addEntry }));
+}
+function NewFinanceModal({ onClose, onSave }) {
+  const [type, setType] = useState("expense");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [date, setDate] = useState(todayStr());
+  return /* @__PURE__ */ React.createElement(Modal, { title: "Add Transaction", onClose }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setType("income"), className: `flex-1 py-2 rounded-lg text-sm font-semibold border ${type === "income" ? "bg-emerald-600 text-white border-emerald-600" : "border-slate-200 text-slate-500"}` }, "Income"), /* @__PURE__ */ React.createElement("button", { onClick: () => setType("expense"), className: `flex-1 py-2 rounded-lg text-sm font-semibold border ${type === "expense" ? "bg-red-600 text-white border-red-600" : "border-slate-200 text-slate-500"}` }, "Expense")), /* @__PURE__ */ React.createElement(Field, { label: "Amount ($)" }, /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", step: "0.01", className: inputCls, value: amount, onChange: (e) => setAmount(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Category" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: category, onChange: (e) => setCategory(e.target.value), placeholder: "Fundraiser, Supplies, Dues\u2026" })), /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: description, onChange: (e) => setDescription(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Date" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: date, onChange: (e) => setDate(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { disabled: !amount || !description, onClick: () => onSave({ type, amount, category, description, date }) }, "Save"))));
+}
+function SecretaryView({ db, persist, me }) {
+  const canEdit = canManage(me, "secretary");
+  const [showNew, setShowNew] = useState(false);
+  const sorted = [...db.minutes].sort((a, b) => b.date.localeCompare(a.date));
+  const addMinutes = async (entry) => {
+    await persist({ ...db, minutes: [{ id: uid(), ...entry, loggedBy: me.name }, ...db.minutes] });
+    setShowNew(false);
+  };
+  const removeMinutes = async (id) => {
+    await persist({ ...db, minutes: db.minutes.filter((m) => m.id !== id) });
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Secretary"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, "Meeting minutes and document storage.")), canEdit && /* @__PURE__ */ React.createElement(Btn, { onClick: () => setShowNew(true) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " New Minutes")), sorted.length === 0 && /* @__PURE__ */ React.createElement(Card, { className: "p-8 text-center text-slate-400 text-sm" }, "No minutes recorded yet."), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, sorted.map((m) => /* @__PURE__ */ React.createElement(Card, { key: m.id, className: "p-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "font-serif font-bold text-slate-900" }, m.title), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, fmtDate(m.date), " \xB7 logged by ", m.loggedBy)), canEdit && /* @__PURE__ */ React.createElement("button", { onClick: () => removeMinutes(m.id), className: "text-slate-400 hover:text-red-600" }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" }))), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mt-2 whitespace-pre-wrap" }, m.content), m.files && m.files.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2 mt-3" }, m.files.map((f, i) => /* @__PURE__ */ React.createElement("a", { key: i, href: f.dataUrl, download: f.name, className: "flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg text-slate-700" }, /* @__PURE__ */ React.createElement(Download, { className: "w-3 h-3" }), " ", f.name)))))), showNew && /* @__PURE__ */ React.createElement(NewMinutesModal, { onClose: () => setShowNew(false), onSave: addMinutes }));
+}
+function NewMinutesModal({ onClose, onSave }) {
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(todayStr());
+  const [content, setContent] = useState("");
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const handleFiles = async (fileList) => {
+    setUploading(true);
+    const arr = Array.from(fileList).slice(0, 3);
+    const out = [];
+    for (const f of arr) {
+      if (f.size > 150 * 1024) continue;
+      const dataUrl = await fileToDataUrl(f);
+      out.push({ name: f.name, dataUrl });
+    }
+    setFiles((prev) => [...prev, ...out]);
+    setUploading(false);
+  };
+  return /* @__PURE__ */ React.createElement(Modal, { title: "New Meeting Minutes", onClose, wide: true }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Title" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: title, onChange: (e) => setTitle(e.target.value), placeholder: "General Meeting \u2014 October" })), /* @__PURE__ */ React.createElement(Field, { label: "Date" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: date, onChange: (e) => setDate(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Minutes" }, /* @__PURE__ */ React.createElement("textarea", { rows: 6, className: inputCls, value: content, onChange: (e) => setContent(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Attach documents" }, /* @__PURE__ */ React.createElement("label", { className: "flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg py-4 text-sm text-slate-500 cursor-pointer hover:bg-slate-50" }, uploading ? /* @__PURE__ */ React.createElement(Loader2, { className: "w-4 h-4 animate-spin" }) : /* @__PURE__ */ React.createElement(Upload, { className: "w-4 h-4" }), "Upload files (max ~150KB each)", /* @__PURE__ */ React.createElement("input", { type: "file", multiple: true, className: "hidden", onChange: (e) => handleFiles(e.target.files) })), files.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-1.5 mt-2" }, files.map((f, i) => /* @__PURE__ */ React.createElement(Badge, { key: i, className: "bg-slate-100 text-slate-700 border-slate-200" }, f.name)))), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { disabled: !title || !content, onClick: () => onSave({ title, date, content, files }) }, "Save"))));
+}
+function MarketingView({ db, persist, me }) {
+  const canEdit = canManage(me, "marketing");
+  const [showNew, setShowNew] = useState(false);
+  const sorted = [...db.campaigns].sort((a, b) => (b.scheduledDate || "").localeCompare(a.scheduledDate || ""));
+  const addCampaign = async (entry) => {
+    await persist({ ...db, campaigns: [{ id: uid(), ...entry, createdBy: me.name }, ...db.campaigns] });
+    setShowNew(false);
+  };
+  const removeCampaign = async (id) => {
+    await persist({ ...db, campaigns: db.campaigns.filter((c) => c.id !== id) });
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-5xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Marketing"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, "Posters, campaigns, and scheduled announcements.")), canEdit && /* @__PURE__ */ React.createElement(Btn, { onClick: () => setShowNew(true) }, /* @__PURE__ */ React.createElement(Plus, { className: "w-4 h-4" }), " New Campaign")), sorted.length === 0 && /* @__PURE__ */ React.createElement(Card, { className: "p-8 text-center text-slate-400 text-sm" }, "No campaigns yet."), /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 lg:grid-cols-3 gap-3" }, sorted.map((c) => /* @__PURE__ */ React.createElement(Card, { key: c.id, className: "overflow-hidden" }, c.poster && /* @__PURE__ */ React.createElement("img", { src: c.poster, className: "w-full h-36 object-cover" }), /* @__PURE__ */ React.createElement("div", { className: "p-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement(Badge, { className: c.status === "scheduled" ? "bg-blue-100 text-blue-800 border-blue-200" : "bg-slate-100 text-slate-700 border-slate-200" }, c.status), canEdit && /* @__PURE__ */ React.createElement("button", { onClick: () => removeCampaign(c.id), className: "text-slate-400 hover:text-red-600" }, /* @__PURE__ */ React.createElement(Trash2, { className: "w-4 h-4" }))), /* @__PURE__ */ React.createElement("p", { className: "font-serif font-bold text-slate-900 mt-2" }, c.title), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mt-1" }, c.description), c.scheduledDate && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-2" }, "Scheduled: ", fmtDate(c.scheduledDate)))))), showNew && /* @__PURE__ */ React.createElement(NewCampaignModal, { onClose: () => setShowNew(false), onSave: addCampaign }));
+}
+function NewCampaignModal({ onClose, onSave }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState("draft");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [poster, setPoster] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const handlePoster = async (file) => {
+    if (!file) return;
+    if (file.size > 150 * 1024) return;
+    setUploading(true);
+    setPoster(await fileToDataUrl(file));
+    setUploading(false);
+  };
+  return /* @__PURE__ */ React.createElement(Modal, { title: "New Marketing Campaign", onClose }, /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Title" }, /* @__PURE__ */ React.createElement("input", { className: inputCls, value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement("textarea", { rows: 3, className: inputCls, value: description, onChange: (e) => setDescription(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Status" }, /* @__PURE__ */ React.createElement("select", { className: inputCls, value: status, onChange: (e) => setStatus(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "draft" }, "Draft"), /* @__PURE__ */ React.createElement("option", { value: "scheduled" }, "Scheduled"), /* @__PURE__ */ React.createElement("option", { value: "live" }, "Live"))), /* @__PURE__ */ React.createElement(Field, { label: "Scheduled date (optional)" }, /* @__PURE__ */ React.createElement("input", { type: "date", className: inputCls, value: scheduledDate, onChange: (e) => setScheduledDate(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Poster / media" }, /* @__PURE__ */ React.createElement("label", { className: "flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-lg py-4 text-sm text-slate-500 cursor-pointer hover:bg-slate-50" }, uploading ? /* @__PURE__ */ React.createElement(Loader2, { className: "w-4 h-4 animate-spin" }) : /* @__PURE__ */ React.createElement(Upload, { className: "w-4 h-4" }), "Upload image (max ~150KB)", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/*", className: "hidden", onChange: (e) => handlePoster(e.target.files[0]) })), poster && /* @__PURE__ */ React.createElement("img", { src: poster, className: "mt-2 h-24 rounded-lg border border-slate-200" })), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2" }, /* @__PURE__ */ React.createElement(Btn, { variant: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { disabled: !title, onClick: () => onSave({ title, description, status, scheduledDate, poster }) }, "Save"))));
+}
+function AdminPanel({ db, persist, me }) {
+  const admins = db.members.filter((m) => isAdminMember(m));
+  const nonAdmins = db.members.filter((m) => !isAdminMember(m));
+  const toggleAdmin = async (member, value) => {
+    if (member.role === "President" && !value) return;
+    const members = db.members.map((m) => m.id === member.id ? { ...m, isAdmin: value } : m);
+    await persist({ ...db, members });
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-3xl space-y-6" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, "Admin Panel"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mt-0.5" }, "Manage who has full administrator permissions.")), /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 mb-3 flex items-center gap-2" }, /* @__PURE__ */ React.createElement(Shield, { className: "w-4 h-4 text-blue-700" }), " Current Administrators"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, admins.map((m) => /* @__PURE__ */ React.createElement("div", { key: m.id, className: "flex items-center justify-between p-3 rounded-xl border border-slate-100" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, m.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, m.email, " \xB7 ", m.role)), m.role !== "President" && /* @__PURE__ */ React.createElement(Btn, { variant: "danger", onClick: () => toggleAdmin(m, false) }, "Revoke"), m.role === "President" && /* @__PURE__ */ React.createElement(Badge, { className: "bg-blue-100 text-blue-800 border-blue-200" }, "Founding Admin"))))), /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 mb-3" }, "Grant Admin Access"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2 max-h-72 overflow-y-auto" }, nonAdmins.map((m) => /* @__PURE__ */ React.createElement("div", { key: m.id, className: "flex items-center justify-between p-3 rounded-xl border border-slate-100" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, m.name), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, m.email, " \xB7 ", m.role)), /* @__PURE__ */ React.createElement(Btn, { variant: "secondary", onClick: () => toggleAdmin(m, true) }, "Make Admin"))), nonAdmins.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400 italic" }, "Every member is already an admin."))));
+}
+function ProfileView({ db, me }) {
+  const { pct, total, present } = attendanceStatsFor(me.id, db.attendance);
+  const myWarnings = db.warnings.filter((w) => w.memberId === me.id);
+  const myEvents = db.events.filter((e) => e.volunteers?.some((v) => v.memberId === me.id));
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-4" }, /* @__PURE__ */ React.createElement("div", { className: "w-16 h-16 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xl" }, me.name.split(" ").map((s) => s[0]).slice(0, 2).join("")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "font-serif text-2xl font-bold text-slate-900" }, me.name), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm" }, me.role, " \xB7 ", me.email))), /* @__PURE__ */ React.createElement("div", { className: "grid sm:grid-cols-2 gap-3" }, /* @__PURE__ */ React.createElement(Card, { className: "p-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase text-slate-500 mb-1" }, "My Attendance"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-2xl font-bold text-blue-900" }, pct === null ? "\u2014" : `${pct}%`), /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement(ProgressBar, { pct: pct || 0 }))), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-1" }, present, " present / ", total, " recorded")), /* @__PURE__ */ React.createElement(Card, { className: "p-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase text-slate-500 mb-1" }, "Warnings"), /* @__PURE__ */ React.createElement("p", { className: "text-2xl font-bold text-slate-900" }, myWarnings.length))), myWarnings.length > 0 && /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 mb-2" }, "Warning Notes"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, myWarnings.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.id, className: "text-sm p-2.5 rounded-lg bg-amber-50 border border-amber-100" }, /* @__PURE__ */ React.createElement("span", { className: "font-semibold capitalize" }, w.type), " \u2014 ", w.note, " ", /* @__PURE__ */ React.createElement("span", { className: "text-xs text-slate-400" }, "(", fmtDate(w.date), ")"))))), /* @__PURE__ */ React.createElement(Card, { className: "p-5" }, /* @__PURE__ */ React.createElement("h2", { className: "font-serif font-bold text-slate-900 mb-2" }, "Events I'm Volunteering For"), myEvents.length === 0 && /* @__PURE__ */ React.createElement(EmptyRow, { text: "You're not signed up for any events yet." }), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, myEvents.map((e) => /* @__PURE__ */ React.createElement("div", { key: e.id, className: "text-sm p-2.5 rounded-lg border border-slate-100 flex justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "font-medium text-slate-700" }, e.title), /* @__PURE__ */ React.createElement("span", { className: "text-slate-400 text-xs" }, fmtDate(e.date)))))));
+}
+const rootEl = document.getElementById("root");
+ReactDOM.createRoot(rootEl).render(/* @__PURE__ */ React.createElement(App, null));
+export {
+  App as default
+};
+
+</script>
+</body>
+</html>

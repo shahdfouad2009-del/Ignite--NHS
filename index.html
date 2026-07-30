@@ -234,7 +234,7 @@ function subscribeDB(onUpdate) {
       async (snap) => {
         const exists = snap.exists;
         const items = exists && Array.isArray(snap.data().items) ? snap.data().items : [];
-        if (key === "members" && !exists && !seeded) {
+        if (key === "members" && items.length === 0 && !seeded) {
           seeded = true;
           try {
             await firestoreDb.collection(FS_COLLECTION).doc("members").set({ items: defaultMembers() });
